@@ -1,0 +1,41 @@
+# RoleShift AI - Render backend configuration
+#
+# Service type: Web Service (Python environment).
+# Build: installs the production dependency set (requirements.txt).
+# Start: production Uvicorn command bound to 0.0.0.0 on Render's $PORT.
+#
+# SECURITY: no secret values are stored in this file. All sensitive values
+# (MONGODB_URL, OLLAMA_API_KEY) must be set in the Render dashboard "Environment"
+# panel using the placeholders below. Never commit real credentials.
+#
+# The frontend (Vercel) origin must be listed in CORS_ORIGINS so the browser is
+# allowed to call this API directly (or proxied via Vercel rewrites).
+
+services:
+  - type: web
+    name: roleshift-backend
+    runtime: python
+    region: oregon
+    plan: free
+    healthCheckPath: /health
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port ${PORT}
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      - key: MONGODB_DATABASE
+        value: roleshift
+      - key: AI_PROVIDER
+        value: ollama_cloud
+      - key: AI_MODEL
+        value: gpt-oss:120b
+      - key: AI_TIMEOUT_SECONDS
+        value: "90"
+      - key: MONGODB_URL
+        sync: false
+      - key: OLLAMA_API_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false

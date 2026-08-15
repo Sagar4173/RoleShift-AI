@@ -177,6 +177,78 @@ the compose `environment` block of the `backend` service to your Atlas values.
 
 Frontend (optional): `VITE_API_BASE_URL` — backend base URL when not using the dev proxy.
 
+## Production deployment
+
+The production architecture is **frozen**:
+
+| Layer     | Platform            |
+|-----------|---------------------|
+| Frontend  | Vercel              |
+| Backend   | Render (Web Service)|
+| Database  | MongoDB Atlas       |
+| AI        | Ollama Cloud (`ollama_cloud`, `gpt-oss:120b`) |
+
+### Backend → Render
+
+1. Push the repo to GitHub and create a **Render Web Service** from it. `render.yaml` is provided
+   (Render Blueprints auto-detect it; you can also create the service manually and mirror it).
+2. In the Render dashboard **Environment** panel set the **secrets** (never in `render.yaml`, never
+   committed):
+   - `MONGODB_URL` (Atlas connection string)
+   - `OLLAMA_API_KEY`
+   - `CORS_ORIGINS=https://<your-project>.vercel.app` (exact Vercel origin)
+3. `render.yaml` already declares the non-secret variables and the production start command:
+   `uvicorn app.main:app --host 0.0.0.0 --port ${PORT}` (binds `0.0.0.0`, uses Render's `$PORT`).
+4. Health check path: `/health` (liveness). `/health/db` additionally verifies MongoDB
+   connectivity.
+5. `backend/Dockerfile` also uses `${PORT:-8000}`, so the same image works on Render and locally.
+
+### Frontend → Vercel
+
+1. Create a Vercel project pointing at the repo root **frontend/** (framework preset: Vite).
+2. Build command: `npm run build`. Output directory: `dist`.
+3. `frontend/vercel.json` provides the SPA catch-all rewrite so `BrowserRouter` deep links
+   (`/role-intelligence/<id>`, `/compare`, …) resolve to `/index.html` on refresh.
+4. **Deployment-time API wiring** (complete once the Render URL exists): to proxy the API through
+   Vercel (same-origin requests, no CORS needed), prepend to `frontend/vercel.json`:
+
+   ```json
+   {
+     "source": "/api/:path*",
+     "destination": "https://<your-backend>.onrender.com/api/:path*"
+   },
+   {
+     "source": "/health/:path*",
+     "destination": "https://<your-backend>.onrender.com/health/:path*"
+   }
+   ```
+
+   The frontend API base defaults to the relative `/api/v1` (`src/services/api.ts`), so with the
+   proxy in place no build-time variable is needed. Alternatively, skip the proxy and set
+   `VITE_API_BASE_URL=https://<your-backend>.onrender.com/api/v1` at build time — then CORS must
+   allow the Vercel origin. **No browser request should depend on `localhost:8000` after deploy.**
+
+### MongoDB Atlas
+
+- Use the Atlas connection string as `MONGODB_URL` (server-side secret).
+- Add Render's egress IP to the Atlas network allow-list so the backend can connect.
+- The app never exposes connection details to clients; indexes are managed by Beanie with
+  `allow_index_dropping=False`, so production indexes are never dropped.
+
+### Ollama Cloud
+
+- `AI_PROVIDER=ollama_cloud`, `AI_MODEL=gpt-oss:120b`, `OLLAMA_API_KEY` (server-side secret).
+- The key is used only in the backend (`backend/app/services/ai/providers/ollama_cloud.py`),
+  never sent to the browser and never logged. Malformed provider output is validated against the
+  strict `AIAnalysisResult` schema before persistence.
+
+### Secret handling
+
+- `.env` files are git-ignored. Set real credentials only via the Render dashboard.
+- Anything starting with `VITE_` is browser-visible — never put API keys or Mongo credentials in
+  frontend env vars.
+- `backend/.env`, logs, `node_modules`, `dist`, and virtual environments are git-ignored.
+
 ## API documentation
 
 - Live Swagger UI: <http://localhost:8000/docs>

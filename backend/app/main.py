@@ -32,12 +32,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
     setup_logging(settings.log_level)
 
+    # Interactive API docs are exposed in non-production environments only.
+    # Production disables them to reduce the public attack surface.
+    expose_docs = settings.app_env != "production"
+
     app = FastAPI(
         title=settings.app_name,
         version=settings.app_version,
         lifespan=lifespan,
-        docs_url="/docs",
-        redoc_url="/redoc",
+        docs_url="/docs" if expose_docs else None,
+        redoc_url="/redoc" if expose_docs else None,
     )
     app.state.settings = settings
 
