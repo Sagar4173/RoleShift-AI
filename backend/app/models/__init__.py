@@ -1,0 +1,1 @@
+"""Beanie document models for RoleShift AI."""
