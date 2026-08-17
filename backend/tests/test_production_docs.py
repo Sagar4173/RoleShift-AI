@@ -65,3 +65,19 @@ def test_production_health_still_served(production_client: TestClient) -> None:
     body = response.json()
     assert body["status"] == "ok"
     assert body["environment"] == "production"
+
+
+def test_production_session_cookie_is_secure(production_client: TestClient) -> None:
+    response = production_client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "prod@roleshift.local",
+            "display_name": "Prod User",
+            "password": "Str0ng!Password",
+        },
+    )
+    assert response.status_code == 201
+    set_cookie = response.headers.get("set-cookie", "").lower()
+    assert "secure" in set_cookie
+    assert "httponly" in set_cookie
+    assert "samesite=lax" in set_cookie

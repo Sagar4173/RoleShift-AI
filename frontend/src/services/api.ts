@@ -4,12 +4,15 @@ import type {
   AnalysisStatus,
   AnalyzeNewRequest,
   AnalyzeNewResponse,
+  AuthUser,
   DashboardSummary,
+  LoginRequest,
   Organization,
   OrganizationCreate,
   Page,
   Process,
   ProcessCreate,
+  RegisterRequest,
   Role,
   RoleAnalysis,
   RoleCompareResponse,
@@ -35,11 +38,19 @@ export class ApiError extends Error {
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "/api/v1").replace(/\/$/, "");
 
+let unauthorizedHandler: (() => void) | null = null;
+
+/** Register a callback invoked when the API returns 401 (expired/invalid session). */
+export function onUnauthorized(handler: (() => void) | null): void {
+  unauthorizedHandler = handler;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       ...init,
     });
   } catch {
@@ -55,6 +66,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     | null;
 
   if (!response.ok) {
+    if (response.status === 401 && unauthorizedHandler) {
+      unauthorizedHandler();
+    }
     throw new ApiError(
       response.status,
       body?.detail?.code ?? "request_failed",
@@ -81,6 +95,20 @@ function clampLimit(limit?: number): number | undefined {
 }
 
 export const api = {
+  // Authentication
+  getCurrentUser(): Promise<AuthUser> {
+    return request("/auth/me");
+  },
+  login(payload: LoginRequest): Promise<AuthUser> {
+    return request("/auth/login", { method: "POST", body: JSON.stringify(payload) });
+  },
+  register(payload: RegisterRequest): Promise<AuthUser> {
+    return request("/auth/register", { method: "POST", body: JSON.stringify(payload) });
+  },
+  logout(): Promise<void> {
+    return request("/auth/logout", { method: "POST" });
+  },
+
   // Organizations
   listOrganizations(skip = 0, limit = 50): Promise<Page<Organization>> {
     return request(`/organizations${toQuery({ skip, limit })}`);

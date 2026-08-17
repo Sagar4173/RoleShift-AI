@@ -222,7 +222,7 @@ function Hero() {
           </Link>
         </div>
         <p className="mt-8 text-xs text-ink-muted">
-          Free during early development — no account required.
+          Free during early development — create an account in under a minute.
         </p>
       </div>
     </section>
@@ -497,10 +497,19 @@ export function LandingPage() {
               </a>
             ))}
           </nav>
-          <Link to="/app" className="btn btn-primary">
-            Open Dashboard
-            <ArrowRightLeft size={14} aria-hidden="true" />
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/login"
+              className="btn btn-ghost hidden sm:inline-flex"
+              aria-label="Sign in to your account"
+            >
+              Sign in
+            </Link>
+            <Link to="/app" className="btn btn-primary">
+              Open Dashboard
+              <ArrowRightLeft size={14} aria-hidden="true" />
+            </Link>
+          </div>
         </div>
       </header>
       <main className="flex-1">

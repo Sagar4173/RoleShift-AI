@@ -286,3 +286,21 @@ export interface ErrorDetail {
 export interface ErrorResponse {
   detail: ErrorDetail;
 }
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  display_name: string;
+  created_at: string;
+}
+
+export interface RegisterRequest {
+  email: string;
+  display_name: string;
+  password: string;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}

@@ -21,8 +21,11 @@ from app.main import create_app
 
 
 @pytest.fixture
-def client(monkeypatch) -> Iterator[TestClient]:
-    """HTTP client with the real FastAPI app backed by an in-memory DB."""
+def anon_client(monkeypatch) -> Iterator[TestClient]:
+    """HTTP client with the real FastAPI app backed by an in-memory DB.
+
+    No session: protected endpoints return 401 for this client.
+    """
     mock_client = AsyncMongoMockClient()
 
     async def _init_db(settings: Settings) -> None:
@@ -61,6 +64,27 @@ def client(monkeypatch) -> Iterator[TestClient]:
     )
     with TestClient(app) as test_client:
         yield test_client
+
+
+@pytest.fixture
+def client(anon_client: TestClient) -> Iterator[TestClient]:
+    """Authenticated HTTP client.
+
+    Registers a test user; registration establishes a session cookie that the
+    httpx-backed TestClient persists across subsequent requests, so every
+    protected endpoint is callable. Authentication is a transport concern —
+    the tests themselves remain focused on their own domain.
+    """
+    response = anon_client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "tester@roleshift.local",
+            "display_name": "Test User",
+            "password": "Str0ng!Password",
+        },
+    )
+    assert response.status_code == 201, response.text
+    yield anon_client
 
 
 def create_organization(client: TestClient, name: str = "Acme Corp") -> dict:

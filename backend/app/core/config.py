@@ -56,6 +56,23 @@ class Settings(BaseSettings):
         default_factory=lambda: ["http://localhost:5173", "http://127.0.0.1:5173"]
     )
 
+    # Authentication - server-side opaque sessions transported via an
+    # HttpOnly cookie. No shared signing secret is required: session tokens
+    # are stored hashed in MongoDB and revoked on logout.
+    auth_cookie_name: str = Field(default="roleshift_session", max_length=64)
+    auth_session_ttl_hours: int = Field(default=168, ge=1, le=8760)
+    auth_password_min_length: int = Field(default=8, ge=6, le=128)
+
+    @property
+    def auth_cookie_secure(self) -> bool:
+        """The session cookie is marked Secure in production.
+
+        Local development and the test suite run over plain http, where a
+        Secure cookie would never be sent back by the client. Production
+        (HTTPS via Render) requires it.
+        """
+        return self.app_env == "production"
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def parse_cors_origins(cls, value: object) -> object:

@@ -22,8 +22,10 @@ from app.models.organization import Organization
 from app.models.process import Process
 from app.models.role import Role
 from app.models.role_analysis import RoleAnalysis
+from app.models.session import Session
 from app.models.skill import Skill
 from app.models.source import Source
+from app.models.user import User
 
 DOCUMENT_MODELS = [
     Organization,
@@ -34,6 +36,8 @@ DOCUMENT_MODELS = [
     RoleAnalysis,
     Source,
     AnalysisRun,
+    User,
+    Session,
 ]
 
 _client: AsyncIOMotorClient | None = None

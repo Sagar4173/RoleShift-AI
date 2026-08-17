@@ -4,6 +4,7 @@ import {
   CircleDashed,
   GraduationCap,
   LayoutDashboard,
+  LogOut,
   Menu,
   Radar,
   Settings,
@@ -11,8 +12,9 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 
+import { useAuth } from "../context/AuthContext";
 import { useConnectivity } from "../hooks/useConnectivity";
 import { cn } from "../lib/utils";
 
@@ -116,16 +118,39 @@ function NavItems({ onNavigate }: NavItemsProps) {
 }
 
 function SidebarFooter() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const initials = user
+    ? user.display_name
+        .split(/\s+/)
+        .map((part) => part[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase()
+    : "??";
+
   return (
     <div className="border-t border-surface-chrome-soft p-4">
       <div className="flex items-center gap-2.5 rounded-lg bg-surface-chrome-soft px-3 py-2.5">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-600 text-xs font-semibold text-white">
-          AD
+          {initials}
         </div>
         <div className="min-w-0">
-          <p className="truncate text-xs font-medium text-white">Admin User</p>
-          <p className="truncate text-[11px] text-ink-chrome-muted">admin@roleshift.ai</p>
+          <p className="truncate text-xs font-medium text-white">{user?.display_name}</p>
+          <p className="truncate text-[11px] text-ink-chrome-muted">{user?.email}</p>
         </div>
+        <button
+          type="button"
+          onClick={() => {
+            navigate("/", { replace: true });
+            void logout();
+          }}
+          className="ml-auto shrink-0 rounded-md p-1.5 text-ink-chrome-muted transition-colors hover:bg-surface-chrome-raised hover:text-white focus:outline-none"
+          aria-label="Sign out"
+          title="Sign out"
+        >
+          <LogOut size={15} aria-hidden="true" />
+        </button>
       </div>
     </div>
   );
@@ -182,7 +207,16 @@ function ConnectionStatus() {
 export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const { user } = useAuth();
   const title = sectionTitle(location.pathname);
+  const initials = user
+    ? user.display_name
+        .split(/\s+/)
+        .map((part) => part[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase()
+    : "??";
 
   useEffect(() => {
     setSidebarOpen(false);
@@ -253,7 +287,7 @@ export function AppLayout() {
               className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 text-xs font-semibold text-brand-700"
               aria-hidden="true"
             >
-              AD
+              {initials}
             </div>
           </div>
         </header>
