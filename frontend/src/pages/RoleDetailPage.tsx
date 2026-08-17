@@ -404,7 +404,7 @@ export function RoleDetailPage() {
 function BackLink() {
   return (
     <Link
-      to="/role-intelligence"
+      to="/app/role-intelligence"
       className="mb-4 inline-flex items-center gap-1.5 text-xs font-medium text-ink-muted transition-colors hover:text-brand-700"
     >
       <ArrowLeft size={14} aria-hidden="true" />

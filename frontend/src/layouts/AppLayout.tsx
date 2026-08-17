@@ -17,21 +17,21 @@ import { useConnectivity } from "../hooks/useConnectivity";
 import { cn } from "../lib/utils";
 
 const primaryNavigation = [
-  { to: "/", label: "Overview", icon: LayoutDashboard, end: true },
-  { to: "/role-intelligence", label: "Role Intelligence", icon: Radar, end: false },
-  { to: "/compare", label: "Compare Roles", icon: ArrowRightLeft, end: false },
-  { to: "/new-role-analysis", label: "New Role Analysis", icon: Sparkles, end: false },
-  { to: "/skills", label: "Skills & Reskilling", icon: GraduationCap, end: false },
+  { to: "/app", label: "Overview", icon: LayoutDashboard, end: true },
+  { to: "/app/role-intelligence", label: "Role Intelligence", icon: Radar, end: false },
+  { to: "/app/compare", label: "Compare Roles", icon: ArrowRightLeft, end: false },
+  { to: "/app/new-role-analysis", label: "New Role Analysis", icon: Sparkles, end: false },
+  { to: "/app/skills", label: "Skills & Reskilling", icon: GraduationCap, end: false },
 ];
 
-const secondaryNavigation = [{ to: "/settings", label: "Settings", icon: Settings, end: false }];
+const secondaryNavigation = [{ to: "/app/settings", label: "Settings", icon: Settings, end: false }];
 
 function sectionTitle(pathname: string): string {
-  if (pathname.startsWith("/role-intelligence")) return "Role Intelligence";
-  if (pathname.startsWith("/compare")) return "Compare Roles";
-  if (pathname.startsWith("/new-role-analysis")) return "New Role Analysis";
-  if (pathname.startsWith("/skills")) return "Skills & Reskilling";
-  if (pathname.startsWith("/settings")) return "Settings";
+  if (pathname.startsWith("/app/role-intelligence")) return "Role Intelligence";
+  if (pathname.startsWith("/app/compare")) return "Compare Roles";
+  if (pathname.startsWith("/app/new-role-analysis")) return "New Role Analysis";
+  if (pathname.startsWith("/app/skills")) return "Skills & Reskilling";
+  if (pathname.startsWith("/app/settings")) return "Settings";
   return "Overview";
 }
 
@@ -238,12 +238,12 @@ export function AppLayout() {
 
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
             <ConnectionStatus />
-            <Link to="/new-role-analysis" className="btn btn-primary hidden sm:inline-flex">
+            <Link to="/app/new-role-analysis" className="btn btn-primary hidden sm:inline-flex">
               <Sparkles size={14} aria-hidden="true" />
               New Role Analysis
             </Link>
             <Link
-              to="/new-role-analysis"
+              to="/app/new-role-analysis"
               className="btn btn-primary sm:hidden"
               aria-label="New Role Analysis"
             >

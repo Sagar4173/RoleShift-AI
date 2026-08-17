@@ -131,7 +131,7 @@ export function RoleComparisonPage() {
             title="No roles to compare"
             description="Create and analyze at least one role before comparing."
             action={
-              <Link to="/new-role-analysis" className="btn btn-primary">
+              <Link to="/app/new-role-analysis" className="btn btn-primary">
                 Analyze a new role
               </Link>
             }
@@ -163,7 +163,7 @@ export function RoleComparisonPage() {
               >
                 <p className="eyebrow">{index === 0 ? "Role A" : "Role B"}</p>
                 <Link
-                  to={`/role-intelligence/${item.role.id}`}
+                  to={`/app/role-intelligence/${item.role.id}`}
                   className="mt-1.5 text-lg font-semibold text-ink-primary hover:text-brand-700 hover:underline"
                 >
                   {item.role.name}

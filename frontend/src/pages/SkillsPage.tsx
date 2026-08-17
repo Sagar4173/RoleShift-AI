@@ -73,7 +73,7 @@ export function SkillsPage() {
                     {item.roles.map((role) => (
                       <Link
                         key={role.role_id}
-                        to={`/role-intelligence/${role.role_id}`}
+                        to={`/app/role-intelligence/${role.role_id}`}
                         className="chip transition-colors hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700"
                       >
                         {role.role_name}

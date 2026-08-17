@@ -1,0 +1,165 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - link "RoleShift AI home" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e20]:
+          - paragraph [ref=e21]: RoleShift AI
+          - paragraph [ref=e22]: Enterprise Intelligence OS
+      - navigation "Primary" [ref=e23]:
+        - link "Product" [ref=e24] [cursor=pointer]:
+          - /url: "#product"
+        - link "How It Works" [ref=e25] [cursor=pointer]:
+          - /url: "#how-it-works"
+        - link "Architecture" [ref=e26] [cursor=pointer]:
+          - /url: "#architecture"
+      - link "Open Dashboard" [ref=e27] [cursor=pointer]:
+        - /url: /app
+  - main [ref=e31]:
+    - generic [ref=e33]:
+      - paragraph [ref=e34]: Role Intelligence Platform
+      - heading "Understand how AI will transform every role." [level=1] [ref=e37]
+      - paragraph [ref=e38]: RoleShift AI turns any role into a forward view — AI exposure, automation and augmentation potential, future responsibilities, future skills, and prioritized skill gaps, all backed by explainable, reproducible analysis.
+      - generic [ref=e39]:
+        - link "Explore Role Intelligence" [ref=e40] [cursor=pointer]:
+          - /url: /app
+        - link "See How It Works" [ref=e43] [cursor=pointer]:
+          - /url: /#how-it-works
+      - paragraph [ref=e44]: Free during early development — no account required.
+    - generic [ref=e46]:
+      - generic [ref=e47]:
+        - paragraph [ref=e48]: The Product
+        - heading "Seven lenses on every role" [level=2] [ref=e49]
+        - paragraph [ref=e50]: One structured analysis produces a complete, explainable picture of how AI changes a role — and what to do about it.
+      - generic [ref=e51]:
+        - generic [ref=e52]:
+          - heading "Role Intelligence" [level=3] [ref=e61]
+          - paragraph [ref=e62]: Every role is analyzed as a whole — its responsibilities, its industry context, and the work it actually performs today.
+        - generic [ref=e63]:
+          - heading "AI Exposure" [level=3] [ref=e68]
+          - paragraph [ref=e69]: A single, explainable score quantifies how much of the role is exposed to AI transformation, with an impact rating from none to high.
+        - generic [ref=e70]:
+          - heading "Automation & Augmentation" [level=3] [ref=e75]
+          - paragraph [ref=e76]: Work is separated into what AI can automate outright and what AI will augment — helping people, not replacing them.
+        - generic [ref=e77]:
+          - heading "Future Responsibilities" [level=3] [ref=e82]
+          - paragraph [ref=e83]: A forward view of the responsibilities the role will carry as AI adoption reshapes the work itself.
+        - generic [ref=e84]:
+          - heading "Future Skills" [level=3] [ref=e89]
+          - paragraph [ref=e90]: The capabilities the role will demand next, derived from the same structured analysis that maps today's skill set.
+        - generic [ref=e91]:
+          - heading "Skill Gaps" [level=3] [ref=e97]
+          - paragraph [ref=e98]: The distance between today's skills and tomorrow's needs, prioritized as low, medium, high, or critical.
+        - generic [ref=e99]:
+          - heading "Explainable Recommendations" [level=3] [ref=e104]
+          - paragraph [ref=e105]: Every result is traceable — the role definition, the model, the prompt version, and the timestamps behind each analysis are recorded and reproducible.
+    - generic [ref=e107]:
+      - generic [ref=e108]:
+        - paragraph [ref=e109]: The Concept
+        - heading "Current → AI transformation → Future" [level=2] [ref=e110]
+        - paragraph [ref=e111]: Roles are not static. RoleShift AI models the journey each role takes as AI adoption reshapes the work.
+      - list [ref=e112]:
+        - listitem [ref=e113]:
+          - generic [ref=e114]:
+            - paragraph [ref=e120]: Current
+            - heading "Today's role" [level=3] [ref=e121]
+            - paragraph [ref=e122]: Responsibilities, human involvement, and the skill set that defines the role as it exists right now.
+        - listitem [ref=e126]:
+          - generic [ref=e127]:
+            - paragraph [ref=e142]: AI Transformation
+            - heading "Structured analysis" [level=3] [ref=e143]
+            - paragraph [ref=e144]: An AI model examines the role against a deterministic framework — exposure, automation, and augmentation potential.
+        - listitem [ref=e148]:
+          - generic [ref=e149]:
+            - paragraph [ref=e159]: Future
+            - heading "Tomorrow's role" [level=3] [ref=e160]
+            - paragraph [ref=e161]: Future responsibilities, future skills, and prioritized gaps give the role a forward path.
+    - generic [ref=e163]:
+      - generic [ref=e164]:
+        - paragraph [ref=e165]: How It Works
+        - heading "The intelligence pipeline" [level=2] [ref=e166]
+        - paragraph [ref=e167]: From a role description to a complete transformation profile — every step is deterministic, versioned, and recorded.
+      - list [ref=e168]:
+        - listitem [ref=e169]:
+          - paragraph [ref=e170]: "01"
+          - heading "Define the role" [level=3] [ref=e171]
+          - paragraph [ref=e172]: Name the role, set its industry, and describe the work it performs today. One structured input drives everything downstream.
+        - listitem [ref=e173]:
+          - paragraph [ref=e174]: "02"
+          - heading "Structured AI analysis" [level=3] [ref=e175]
+          - paragraph [ref=e176]: The role definition is sent to a specialized model through a strict, versioned analysis prompt that returns a structured profile.
+        - listitem [ref=e177]:
+          - paragraph [ref=e178]: "03"
+          - heading "Deterministic scoring" [level=3] [ref=e179]
+          - paragraph [ref=e180]: Raw model output is validated and normalized into the exposure, automation, and augmentation scores — computed deterministically, not guessed.
+        - listitem [ref=e181]:
+          - paragraph [ref=e182]: "04"
+          - heading "Explainable output" [level=3] [ref=e183]
+          - paragraph [ref=e184]: Future responsibilities, future skills, gaps, and reskilling priorities are compiled alongside full provenance for every analysis run.
+      - generic [ref=e185]:
+        - link "Analyze your first role" [ref=e186] [cursor=pointer]:
+          - /url: /app
+        - link "See example analyses" [ref=e192] [cursor=pointer]:
+          - /url: /app/role-intelligence
+    - generic [ref=e201]:
+      - generic [ref=e202]:
+        - paragraph [ref=e203]: Architecture
+        - heading "Built to be trusted, built to be audited" [level=2] [ref=e204]
+        - paragraph [ref=e205]: "RoleShift AI is engineered around one idea: analysis you can explain, reproduce, and verify."
+      - generic [ref=e206]:
+        - generic [ref=e207]:
+          - heading "Layered backend" [level=3] [ref=e213]
+          - paragraph [ref=e214]: A FastAPI service with strict typed schemas, centralized validation, and separation between routes, services, and data access.
+        - generic [ref=e215]:
+          - heading "Document data store" [level=3] [ref=e221]
+          - paragraph [ref=e222]: MongoDB Atlas keeps roles, analyses, and runs with immutable provenance — model, prompt version, and timestamps on every record.
+        - generic [ref=e223]:
+          - heading "Managed model runtime" [level=3] [ref=e237]
+          - paragraph [ref=e238]: Inference runs on Ollama Cloud — a hosted model runtime that keeps the analysis pipeline simple and self-hostable.
+        - generic [ref=e239]:
+          - heading "Auditable by design" [level=3] [ref=e244]
+          - paragraph [ref=e245]: Every analysis records the model and prompt version that produced it, so results can be traced, rerun, and reproduced.
+        - generic [ref=e246]:
+          - heading "Reduced attack surface" [level=3] [ref=e251]
+          - paragraph [ref=e252]: Strict request validation, explicit CORS origins, gated documentation in production, and structured error handling.
+        - generic [ref=e253]:
+          - heading "Built for iteration" [level=3] [ref=e259]
+          - paragraph [ref=e260]: A 108-test backend suite and typed React frontend keep the pipeline safe to evolve as models and prompts improve.
+      - generic [ref=e261]:
+        - heading "What we stand behind today" [level=3] [ref=e265]
+        - list [ref=e266]:
+          - listitem [ref=e267]:
+            - generic [ref=e271]: Strict input validation on every endpoint
+          - listitem [ref=e272]:
+            - generic [ref=e277]: Full provenance on every analysis run
+          - listitem [ref=e278]:
+            - generic [ref=e282]: Gated documentation and explicit CORS in production
+          - listitem [ref=e283]:
+            - generic [ref=e287]: Deterministic scoring — no hidden magic numbers
+        - paragraph [ref=e288]: RoleShift AI is in active development. We do not claim certifications, customer counts, or performance statistics — the platform's capabilities are exactly what you can verify yourself.
+    - generic [ref=e291]:
+      - paragraph [ref=e292]: Get Started
+      - heading "See what AI means for your roles" [level=2] [ref=e293]
+      - paragraph [ref=e294]: Explore role intelligence across industries, compare roles side by side, and trace every recommendation back to its source.
+      - generic [ref=e295]:
+        - link "Explore Role Intelligence" [ref=e296] [cursor=pointer]:
+          - /url: /app
+        - link "Analyze a new role" [ref=e299] [cursor=pointer]:
+          - /url: /app/new-role-analysis
+  - contentinfo [ref=e302]:
+    - generic [ref=e303]:
+      - link "RoleShift AI home" [ref=e304] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e318]:
+          - paragraph [ref=e319]: RoleShift AI
+          - paragraph [ref=e320]: Enterprise Intelligence OS
+      - navigation "Footer" [ref=e321]:
+        - link "Product" [ref=e322] [cursor=pointer]:
+          - /url: "#product"
+        - link "How It Works" [ref=e323] [cursor=pointer]:
+          - /url: "#how-it-works"
+        - link "Architecture" [ref=e324] [cursor=pointer]:
+          - /url: "#architecture"
+        - link "Open Dashboard" [ref=e325] [cursor=pointer]:
+          - /url: /app
+      - paragraph [ref=e326]: © 2026 RoleShift AI

@@ -47,7 +47,7 @@ function TopOpportunities({
       {ranked.map((item, index) => (
         <li key={item.role_id}>
           <Link
-            to={`/role-intelligence/${item.role_id}`}
+            to={`/app/role-intelligence/${item.role_id}`}
             className="group flex items-center gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-surface-card-hover"
           >
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-surface-sunken text-[11px] font-semibold tabular-nums text-ink-muted">
@@ -127,7 +127,7 @@ export function DashboardPage() {
         title="Workforce AI Intelligence"
         description="Understand how AI transforms your workforce: which roles carry the highest exposure, which skills are becoming essential, and where to act first."
         actions={
-          <Link to="/new-role-analysis" className="btn btn-primary">
+          <Link to="/app/new-role-analysis" className="btn btn-primary">
             <Sparkles size={14} aria-hidden="true" />
             New Role Analysis
           </Link>
@@ -173,7 +173,7 @@ export function DashboardPage() {
               title="Analyze your first role"
               description="Enter a role (e.g. Supply Chain Manager) and RoleShift AI will run a real AI analysis, then build its intelligence view here."
               action={
-                <Link to="/new-role-analysis" className="btn btn-primary">
+                <Link to="/app/new-role-analysis" className="btn btn-primary">
                   <Sparkles size={15} aria-hidden="true" />
                   Analyze a new role
                 </Link>
@@ -288,7 +288,7 @@ export function DashboardPage() {
                   {data.recent_role_analyses.map((item) => (
                     <li key={item.role_id}>
                       <Link
-                        to={`/role-intelligence/${item.role_id}`}
+                        to={`/app/role-intelligence/${item.role_id}`}
                         className="group flex items-center justify-between gap-3 py-3 transition-colors hover:bg-surface-card-hover"
                       >
                         <div className="min-w-0">

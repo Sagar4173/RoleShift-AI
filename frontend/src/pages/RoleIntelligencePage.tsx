@@ -19,7 +19,7 @@ function RoleRow({ role }: { role: RoleListItem }) {
   return (
     <li>
       <Link
-        to={`/role-intelligence/${role.id}`}
+        to={`/app/role-intelligence/${role.id}`}
         className="group flex items-center justify-between gap-3 rounded-lg px-3 py-3 transition-colors hover:bg-surface-card-hover"
       >
         <div className="min-w-0">
@@ -88,7 +88,7 @@ export function RoleIntelligencePage() {
         title="Role Intelligence"
         description="Browse roles and open each role's AI exposure, activity-level impact, and future-role profile."
         actions={
-          <Link to="/new-role-analysis" className="btn btn-primary">
+          <Link to="/app/new-role-analysis" className="btn btn-primary">
             <Sparkles size={14} aria-hidden="true" />
             Analyze a role
           </Link>
@@ -171,7 +171,7 @@ export function RoleIntelligencePage() {
               title="No roles yet"
               description="Create and analyze a role to start building role intelligence."
               action={
-                <Link to="/new-role-analysis" className="btn btn-primary">
+                <Link to="/app/new-role-analysis" className="btn btn-primary">
                   <Sparkles size={15} aria-hidden="true" />
                   Analyze a new role
                 </Link>
