@@ -32,8 +32,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
     setup_logging(settings.log_level)
 
-    # Interactive API docs are exposed in non-production environments only.
-    # Production disables them to reduce the public attack surface.
+    # Interactive API docs and the raw OpenAPI schema are exposed in
+    # non-production environments only. Production disables all three to
+    # reduce the public attack surface.
     expose_docs = settings.app_env != "production"
 
     app = FastAPI(
@@ -42,6 +43,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
         docs_url="/docs" if expose_docs else None,
         redoc_url="/redoc" if expose_docs else None,
+        openapi_url="/openapi.json" if expose_docs else None,
     )
     app.state.settings = settings
 

@@ -46,7 +46,6 @@ class Settings(BaseSettings):
     ai_api_base_url: str = Field(default="https://api.deepseek.com", max_length=500)
     ollama_api_key: str = Field(default="", max_length=500)
     ai_timeout_seconds: int = Field(default=60, ge=10, le=300)
-    ai_max_retries: int = Field(default=0, ge=0, le=3)
     ai_temperature: float = Field(default=0.3, ge=0.0, le=2.0)
 
     # CORS - comma-separated list of allowed origins.
