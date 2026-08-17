@@ -1,5 +1,5 @@
 import { ArrowLeft, BrainCircuit, Eye, EyeOff, LoaderCircle } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
@@ -10,10 +10,17 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
 
 export function SignupPage() {
-  const { register } = useAuth();
+  const { register, status } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
+  const submittedRef = useRef(false);
+
+  useEffect(() => {
+    if (status === "authenticated" && !submittedRef.current) {
+      navigate("/app", { replace: true });
+    }
+  }, [status, navigate]);
 
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
@@ -56,6 +63,7 @@ export function SignupPage() {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (!validate()) return;
+    submittedRef.current = true;
     setSubmitting(true);
     setFormError(null);
     try {

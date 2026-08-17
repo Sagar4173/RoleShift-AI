@@ -1,7 +1,7 @@
 import { Navigate, Outlet, Route, Routes, useParams } from "react-router-dom";
 
 import { ProtectedRoute } from "./components/ProtectedRoute";
-import { AuthProvider, useAuth } from "./context/AuthContext";
+import { AuthProvider } from "./context/AuthContext";
 import { AppLayout } from "./layouts/AppLayout";
 import { DashboardPage } from "./pages/DashboardPage";
 import { LandingPage } from "./pages/LandingPage";
@@ -20,14 +20,6 @@ function LegacyRoleRedirect() {
   return <Navigate to={`/app/role-intelligence/${roleId}`} replace />;
 }
 
-function PublicOnlyRoute() {
-  const { status } = useAuth();
-  if (status === "authenticated") {
-    return <Navigate to="/app" replace />;
-  }
-  return <Outlet />;
-}
-
 function AuthArea() {
   return (
     <AuthProvider>
@@ -42,10 +34,8 @@ export function App() {
       <Route path="/" element={<LandingPage />} />
 
       <Route element={<AuthArea />}>
-        <Route element={<PublicOnlyRoute />}>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
-        </Route>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
 
         <Route path="/app" element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>

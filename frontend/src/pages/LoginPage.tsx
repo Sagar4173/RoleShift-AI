@@ -1,5 +1,5 @@
 import { ArrowLeft, BrainCircuit, Eye, EyeOff, LoaderCircle } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
@@ -9,10 +9,17 @@ import { ApiError } from "../services/api";
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function LoginPage() {
-  const { login } = useAuth();
+  const { login, status } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
+  const submittedRef = useRef(false);
+
+  useEffect(() => {
+    if (status === "authenticated" && !submittedRef.current) {
+      navigate("/app", { replace: true });
+    }
+  }, [status, navigate]);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -38,6 +45,7 @@ export function LoginPage() {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (!validate()) return;
+    submittedRef.current = true;
     setSubmitting(true);
     setFormError(null);
     try {
