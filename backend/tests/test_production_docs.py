@@ -19,6 +19,8 @@ from app.core import database
 from app.core.config import Settings
 from app.main import create_app
 
+from tests.conftest import seed_default_organization
+
 
 @pytest.fixture
 def production_client(monkeypatch) -> Iterator[TestClient]:
@@ -30,6 +32,7 @@ def production_client(monkeypatch) -> Iterator[TestClient]:
             database=mock_client["roleshift_production_test"],  # type: ignore[arg-type]
             document_models=database.DOCUMENT_MODELS,
         )
+        await seed_default_organization(mock_client)
         database._client = mock_client
 
     async def _close_db() -> None:

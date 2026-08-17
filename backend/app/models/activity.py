@@ -10,6 +10,7 @@ from app.models.enums import HumanInvolvement
 
 
 class Activity(BaseDocument):
+    organization_id: PydanticObjectId
     process_id: PydanticObjectId
     role_id: PydanticObjectId
     name: str = Field(min_length=1, max_length=150)
@@ -19,4 +20,9 @@ class Activity(BaseDocument):
 
     class Settings:
         name = "activities"
-        indexes = [[("process_id", 1), ("role_id", 1)], "role_id"]
+        indexes = [
+            [("process_id", 1), ("role_id", 1)],
+            "role_id",
+            [("organization_id", 1), ("role_id", 1)],
+            [("organization_id", 1), ("process_id", 1)],
+        ]

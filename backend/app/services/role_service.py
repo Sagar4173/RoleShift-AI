@@ -44,8 +44,10 @@ class RoleService:
         self.repository = RoleRepository()
         self._analysis_repo = RoleAnalysisRepository()
 
-    async def create(self, payload: RoleCreate) -> Role:
-        return await self.repository.create(Role(**payload.model_dump()))
+    async def create(self, payload: RoleCreate, organization_id: PydanticObjectId) -> Role:
+        return await self.repository.create(
+            Role(organization_id=organization_id, **payload.model_dump())
+        )
 
     async def create_with_context(
         self,
@@ -67,11 +69,11 @@ class RoleService:
         """
         role = await self.create(
             RoleCreate(
-                organization_id=organization_id,
                 name=name,
                 description=description,
                 industry=industry,
-            )
+            ),
+            organization_id=organization_id,
         )
         if role.id is None:
             raise AppError(
@@ -86,11 +88,11 @@ class RoleService:
         for process_input in processes:
             process = await process_service.create(
                 ProcessCreate(
-                    organization_id=organization_id,
                     name=process_input.name,
                     description=process_input.description,
                     industry=industry,
-                )
+                ),
+                organization_id=organization_id,
             )
             if process.id is None:
                 continue
@@ -101,7 +103,8 @@ class RoleService:
                         role_id=role.id,
                         name=activity_name,
                         sequence=sequence,
-                    )
+                    ),
+                    organization_id=organization_id,
                 )
                 sequence += 1
 
@@ -122,23 +125,23 @@ class RoleService:
         await self.repository.update(role)
 
     async def set_current_skills(
-        self, role_id, skill_names: list[str]
+        self, role_id, skill_names: list[str], organization_id: PydanticObjectId
     ) -> Role:
         """Replace a role's current skills by name, then return the role."""
-        role = await self.get(role_id)
+        role = await self.get(role_id, organization_id)
         await self._replace_current_skills(role, skill_names)
         return role
 
-    async def get(self, role_id) -> Role:
+    async def get(self, role_id, organization_id: PydanticObjectId) -> Role:
         role = await self.repository.get_by_id(role_id)
-        if role is None:
+        if role is None or role.organization_id != organization_id:
             raise NotFoundError("Role not found", code="role_not_found")
         return role
 
     async def list(
-        self, *, organization_id=None, skip: int = 0, limit: int = 50
+        self, *, organization_id: PydanticObjectId, skip: int = 0, limit: int = 50
     ) -> tuple[list[Role], int]:
-        filters = {"organization_id": organization_id} if organization_id else None
+        filters = {"organization_id": organization_id}
         roles = await self.repository.list(skip=skip, limit=limit, filters=filters)
         total = await self.repository.count(filters)
         return roles, total
@@ -146,13 +149,13 @@ class RoleService:
     async def list_with_analysis(
         self,
         *,
-        organization_id=None,
+        organization_id: PydanticObjectId,
         industry: str | None = None,
         search: str | None = None,
         skip: int = 0,
         limit: int = 50,
     ) -> tuple[list[tuple[Role, RoleAnalysis | None]], int]:
-        """List roles (optionally filtered) paired with their latest analysis."""
+        """List roles within an organization paired with their latest analysis."""
         filters = _build_filters(
             organization_id=organization_id,
             industry=industry,
@@ -161,12 +164,12 @@ class RoleService:
         roles = await self.repository.list(skip=skip, limit=limit, filters=filters)
         total = await self.repository.count(filters)
         role_ids = [role.id for role in roles if role.id is not None]
-        analyses = await self._analysis_repo.latest_for_roles(role_ids)
+        analyses = await self._analysis_repo.latest_for_roles(role_ids, organization_id)
         return [
             (role, analyses.get(role.id) if role.id is not None else None)
             for role in roles
         ], total
 
-    async def delete(self, role_id) -> None:
-        role = await self.get(role_id)
+    async def delete(self, role_id, organization_id: PydanticObjectId) -> None:
+        role = await self.get(role_id, organization_id)
         await self.repository.delete(role)

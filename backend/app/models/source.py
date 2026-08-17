@@ -15,6 +15,7 @@ HttpUrlStr = Annotated[str, StringConstraints(max_length=1000)]
 
 
 class Source(BaseDocument):
+    organization_id: PydanticObjectId
     role_id: PydanticObjectId | None = Field(default=None)
     title: str = Field(min_length=1, max_length=300)
     url: HttpUrlStr
@@ -27,4 +28,8 @@ class Source(BaseDocument):
 
     class Settings:
         name = "sources"
-        indexes = ["content_hash", [("role_id", 1), ("relevance", -1)]]
+        indexes = [
+            "content_hash",
+            [("role_id", 1), ("relevance", -1)],
+            [("organization_id", 1), ("role_id", 1), ("relevance", -1)],
+        ]

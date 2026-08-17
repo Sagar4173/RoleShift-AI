@@ -99,6 +99,7 @@ class ModelMetadata(BaseModel):
 
 
 class RoleAnalysis(BaseDocument):
+    organization_id: PydanticObjectId
     role_id: PydanticObjectId
     analysis_version: str = Field(min_length=1, max_length=50, default="1.0")
 
@@ -118,4 +119,8 @@ class RoleAnalysis(BaseDocument):
 
     class Settings:
         name = "role_analyses"
-        indexes = [[("role_id", 1), ("created_at", -1)], "role_id"]
+        indexes = [
+            [("role_id", 1), ("created_at", -1)],
+            "role_id",
+            [("organization_id", 1), ("role_id", 1), ("created_at", -1)],
+        ]

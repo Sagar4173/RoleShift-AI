@@ -28,6 +28,7 @@ class ActivityRead(BaseModel):
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
     id: ObjectIdStr
+    organization_id: ObjectIdStr
     process_id: ObjectIdStr
     role_id: ObjectIdStr
     name: str

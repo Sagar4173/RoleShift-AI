@@ -4,6 +4,12 @@ The application is exercised end-to-end (HTTP layer) against an in-memory
 MongoDB (mongomock-motor), so the test suite runs without a live database.
 Production code paths are unchanged; only the database bootstrap functions
 are swapped.
+
+Phase 6.3: every in-memory database is seeded with one organization ("Default
+Organization") because registration requires an existing organization and
+fails safely (503) when none exists. The organization helpers return the
+authenticated user's own organization (organization creation via the API was
+removed in Phase 6.3).
 """
 
 from __future__ import annotations
@@ -12,19 +18,33 @@ from collections.abc import Iterator
 
 import pytest
 from beanie import init_beanie
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from mongomock_motor import AsyncMongoMockClient
 
 from app.core import database
 from app.core.config import Settings
 from app.main import create_app
+from app.models.organization import Organization
+
+DEFAULT_ORG_NAME = "Default Organization"
+
+
+async def seed_default_organization(mock_client) -> None:
+    """Insert the single organization every test user is bound to."""
+    await Organization(name=DEFAULT_ORG_NAME, industry="Technology").insert()
+
+
+def _build_app(settings: Settings) -> FastAPI:
+    return create_app(settings=settings)
 
 
 @pytest.fixture
 def anon_client(monkeypatch) -> Iterator[TestClient]:
     """HTTP client with the real FastAPI app backed by an in-memory DB.
 
-    No session: protected endpoints return 401 for this client.
+    No session: protected endpoints return 401 for this client. The DB is
+    seeded with the default organization (registration depends on it).
     """
     mock_client = AsyncMongoMockClient()
 
@@ -33,6 +53,7 @@ def anon_client(monkeypatch) -> Iterator[TestClient]:
             database=mock_client["roleshift_test"],  # type: ignore[arg-type]
             document_models=database.DOCUMENT_MODELS,
         )
+        await seed_default_organization(mock_client)
         database._client = mock_client
 
     async def _close_db() -> None:
@@ -49,8 +70,8 @@ def anon_client(monkeypatch) -> Iterator[TestClient]:
     # from a developer's .env and never reach a real provider. ai_provider="none"
     # yields NoopProvider (raises AIProviderNotConfiguredError), and tests that
     # exercise the pipeline mock get_provider directly.
-    app = create_app(
-        settings=Settings(
+    app = _build_app(
+        Settings(
             app_env="test",
             log_level="WARNING",
             ai_provider="none",
@@ -88,18 +109,29 @@ def client(anon_client: TestClient) -> Iterator[TestClient]:
 
 
 def create_organization(client: TestClient, name: str = "Acme Corp") -> dict:
-    response = client.post(
-        "/api/v1/organizations",
-        json={"name": name, "industry": "Technology", "description": "Test org"},
-    )
-    assert response.status_code == 201, response.text
-    return response.json()
+    """Return the authenticated user's own organization.
+
+    Phase 6.3 removed organization creation from the API; every user is
+    bound to the single seeded organization, so this helper resolves it via
+    the (tenant-scoped) list endpoint. ``name`` is accepted for call-site
+    compatibility only.
+    """
+    response = client.get("/api/v1/organizations")
+    assert response.status_code == 200, response.text
+    items = response.json()["items"]
+    assert len(items) == 1
+    return items[0]
 
 
 def create_role(client: TestClient, organization_id: str, name: str = "Data Analyst") -> dict:
+    """Create a role inside the caller's organization.
+
+    The API derives the organization from the session (Phase 6.3);
+    ``organization_id`` is accepted for call-site compatibility only.
+    """
     response = client.post(
         "/api/v1/roles",
-        json={"organization_id": organization_id, "name": name, "industry": "Technology"},
+        json={"name": name, "industry": "Technology"},
     )
     assert response.status_code == 201, response.text
     return response.json()
@@ -108,9 +140,10 @@ def create_role(client: TestClient, organization_id: str, name: str = "Data Anal
 def create_process(
     client: TestClient, organization_id: str, name: str = "Data Processing"
 ) -> dict:
+    """Create a process inside the caller's organization (org derived from session)."""
     response = client.post(
         "/api/v1/processes",
-        json={"organization_id": organization_id, "name": name, "description": "Test process"},
+        json={"name": name, "description": "Test process"},
     )
     assert response.status_code == 201, response.text
     return response.json()

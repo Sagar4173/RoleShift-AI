@@ -42,6 +42,7 @@ class UserRead(BaseModel):
     id: str
     email: str
     display_name: str
+    organization_id: str
     created_at: str
 
     @classmethod
@@ -50,5 +51,6 @@ class UserRead(BaseModel):
             id=str(user.id),
             email=user.email,
             display_name=user.display_name,
+            organization_id=str(user.organization_id),
             created_at=user.created_at.isoformat(),
         )

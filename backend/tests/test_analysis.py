@@ -9,6 +9,7 @@ from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from beanie import PydanticObjectId
 
 from app.core.config import Settings
 from app.main import create_app
@@ -728,6 +729,7 @@ class TestSkillGapInvariant:
             request,
             provider_name="deepseek",
             model_name="deepseek-chat",
+            organization_id=PydanticObjectId("6a805602a87c053756353a00"),
         )
 
         assert len(analysis.skill_gaps) == 1

@@ -12,6 +12,7 @@ from app.models.enums import AnalysisRunStatus
 
 
 class AnalysisRun(BaseDocument):
+    organization_id: PydanticObjectId
     role_id: PydanticObjectId
     provider: str = Field(default="", max_length=100)
     model: str = Field(min_length=1, max_length=200)
@@ -30,4 +31,5 @@ class AnalysisRun(BaseDocument):
             [("role_id", 1), ("status", 1)],
             [("role_id", 1), ("started_at", -1)],
             [("input_hash", 1), ("status", 1)],
+            [("organization_id", 1), ("input_hash", 1), ("status", 1)],
         ]

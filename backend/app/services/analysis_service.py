@@ -103,21 +103,27 @@ def _compute_input_hash(request: AIAnalysisRequest) -> str:
 # Context gathering
 # ---------------------------------------------------------------------------
 
-async def _build_request(role_id: PydanticObjectId) -> AIAnalysisRequest:
+async def _build_request(
+    role_id: PydanticObjectId, organization_id: PydanticObjectId
+) -> AIAnalysisRequest:
     """Load all related data and assemble the analysis request.
 
-    Context is role-scoped: processes are those that own the role's
-    activities, and current skills are the ones linked to the role. This
-    keeps the AI input truthful rather than sending unrelated org-wide data.
+    Context is role- AND organization-scoped: processes are those that own
+    the role's activities, current skills are the ones linked to the role,
+    and every referenced document must belong to the role's organization.
+    This keeps the AI input truthful and prevents foreign-tenant data from
+    leaking into another organization's analysis request.
     """
     role_service = RoleService()
     process_service = ProcessService()
     activity_service = ActivityService()
     skill_service = SkillService()
 
-    role = await role_service.get(role_id)
+    role = await role_service.get(role_id, organization_id)
 
-    activities, _ = await activity_service.list(role_id=role_id, limit=200)
+    activities, _ = await activity_service.list(
+        organization_id=organization_id, role_id=role_id, limit=200
+    )
 
     process_ids = sorted(
         {a.process_id for a in activities if a.process_id is not None}, key=str
@@ -125,7 +131,7 @@ async def _build_request(role_id: PydanticObjectId) -> AIAnalysisRequest:
     processes: list = []
     for process_id in process_ids:
         process = await process_service.repository.get_by_id(process_id)
-        if process is not None:
+        if process is not None and process.organization_id == organization_id:
             processes.append(process)
 
     skills: list = []
@@ -190,6 +196,7 @@ async def _normalise_and_persist(
     request: AIAnalysisRequest,
     provider_name: str,
     model_name: str,
+    organization_id: PydanticObjectId,
 ) -> RoleAnalysis:
     """Map temp refs → ObjectIds, normalise scores, persist, and return."""
 
@@ -198,7 +205,9 @@ async def _normalise_and_persist(
     if request.activities:
         activity_service = ActivityService()
         all_activities, _ = await activity_service.list(
-            role_id=PydanticObjectId(request.role_id), limit=200
+            organization_id=organization_id,
+            role_id=PydanticObjectId(request.role_id),
+            limit=200,
         )
         for i, act in enumerate(all_activities):
             if act.id is not None:
@@ -280,6 +289,7 @@ async def _normalise_and_persist(
 
     # Persist RoleAnalysis
     analysis = RoleAnalysis(
+        organization_id=organization_id,
         role_id=PydanticObjectId(request.role_id),
         analysis_version=ANALYSIS_VERSION,
         ai_exposure=AiExposureSummary(
@@ -317,23 +327,30 @@ class AnalysisService:
         self._run_repo = AnalysisRunRepository()
         self._role_service = RoleService()
 
-    async def get_latest_for_role(self, role_id: PydanticObjectId) -> RoleAnalysis | None:
-        """Return the newest persisted analysis for a role, if any."""
-        role = await self._role_service.get(role_id)
-        if role is None:
-            raise NotFoundError("Role not found", code="role_not_found")
-        return await self._analysis_repo.latest_for_role(role_id)
+    async def get_latest_for_role(
+        self, role_id: PydanticObjectId, organization_id: PydanticObjectId
+    ) -> RoleAnalysis | None:
+        """Return the newest persisted analysis for a role, if any.
+
+        The role lookup is organization-scoped: a role from another
+        organization is indistinguishable from a missing one (404).
+        """
+        await self._role_service.get(role_id, organization_id)
+        return await self._analysis_repo.latest_for_role(role_id, organization_id)
 
     async def to_read(self, analysis: RoleAnalysis) -> RoleAnalysisRead:
         """Build a RoleAnalysisRead enriched with the role's current skills.
 
         ``current_skills`` are role data resolved at read time (the analysis
         document stores future skills and gaps, not the current skill set).
+        The role is resolved within the analysis's own organization.
         """
         data = RoleAnalysisRead.model_validate(analysis).model_dump()
         current_skills: list[CurrentSkillRead] = []
         try:
-            role = await self._role_service.get(analysis.role_id)
+            role = await self._role_service.get(
+                analysis.role_id, analysis.organization_id
+            )
         except NotFoundError:
             role = None
         if role is not None and role.current_skill_ids:
@@ -353,33 +370,40 @@ class AnalysisService:
         *,
         settings: Settings,
         force: bool = False,
+        organization_id: PydanticObjectId,
     ) -> RoleAnalysis:
-        """Run the full analysis pipeline for a role.
+        """Run the full analysis pipeline for a role within an organization.
 
-        1.  Load role and related context.
+        1.  Load role and related context (organization-scoped; a foreign
+            role is a 404 and the provider is never invoked).
         2.  Call the configured AI provider.
         3.  Validate and normalise the structured output.
         4.  Persist RoleAnalysis and AnalysisRun records.
         5.  Return the persisted analysis.
 
         Deduplication: if a completed AnalysisRun with the same input hash
-        already exists, the existing RoleAnalysis is returned unless
-        ``force=True``.
+        exists WITHIN THE SAME ORGANIZATION, the existing RoleAnalysis is
+        returned unless ``force=True``. One tenant can never receive another
+        tenant's cached analysis.
         """
         provider = get_provider(settings)
 
+        # 0. Tenant boundary: resolve the role inside the caller's org.
+        #    A foreign/missing role raises 404 BEFORE any provider call.
+        await self._role_service.get(role_id, organization_id)
+
         # 1. Build structured request
-        request = await _build_request(role_id)
+        request = await _build_request(role_id, organization_id)
 
         # 1b. Data-quality gate: refuse empty/meaningless contexts.
         _validate_context(request)
 
         input_hash = _compute_input_hash(request)
 
-        # 2. Dedup check
+        # 2. Dedup check (organization-scoped)
         if not force:
             existing_run = await self._run_repo.find_completed_by_input_hash(
-                input_hash
+                input_hash, organization_id
             )
             if existing_run and existing_run.role_analysis_id:
                 existing = await self._analysis_repo.get_by_id(
@@ -395,6 +419,7 @@ class AnalysisService:
 
         # 3. Create AnalysisRun (audit trail)
         run = AnalysisRun(
+            organization_id=organization_id,
             role_id=role_id,
             provider=provider.name,
             model=settings.ai_model,
@@ -443,6 +468,7 @@ class AnalysisService:
             request,
             provider_name=provider.name,
             model_name=settings.ai_model,
+            organization_id=organization_id,
         )
 
         # 7. Update AnalysisRun

@@ -15,7 +15,6 @@ Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max
 class ProcessCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    organization_id: ObjectIdStr
     name: Name
     description: Annotated[str | None, StringConstraints(strip_whitespace=True, max_length=2000)] = None
     industry: Annotated[str | None, StringConstraints(strip_whitespace=True, max_length=100)] = None

@@ -23,12 +23,6 @@ export interface Organization {
   updated_at: string;
 }
 
-export interface OrganizationCreate {
-  name: string;
-  industry?: string | null;
-  description?: string | null;
-}
-
 export interface Role {
   id: string;
   organization_id: string;
@@ -48,7 +42,6 @@ export interface RoleListItem extends Role {
 }
 
 export interface RoleCreate {
-  organization_id: string;
   name: string;
   description?: string | null;
   industry?: string | null;
@@ -66,7 +59,6 @@ export interface Process {
 }
 
 export interface ProcessCreate {
-  organization_id: string;
   name: string;
   description?: string | null;
   industry?: string | null;
@@ -289,6 +281,7 @@ export interface ErrorResponse {
 
 export interface AuthUser {
   id: string;
+  organization_id: string;
   email: string;
   display_name: string;
   created_at: string;

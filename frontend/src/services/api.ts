@@ -8,7 +8,6 @@ import type {
   DashboardSummary,
   LoginRequest,
   Organization,
-  OrganizationCreate,
   Page,
   Process,
   ProcessCreate,
@@ -116,16 +115,12 @@ export const api = {
   getOrganization(id: string): Promise<Organization> {
     return request(`/organizations/${id}`);
   },
-  createOrganization(payload: OrganizationCreate): Promise<Organization> {
-    return request("/organizations", { method: "POST", body: JSON.stringify(payload) });
-  },
 
   // Roles
   listRoles(
     options: {
       skip?: number;
       limit?: number;
-      organizationId?: string;
       search?: string;
       industry?: string;
     } = {},
@@ -134,7 +129,6 @@ export const api = {
       `/roles${toQuery({
         skip: options.skip,
         limit: clampLimit(options.limit),
-        organization_id: options.organizationId,
         search: options.search,
         industry: options.industry,
       })}`,
@@ -167,8 +161,8 @@ export const api = {
   },
 
   // Processes
-  listProcesses(skip = 0, limit = 50, organizationId?: string): Promise<Page<Process>> {
-    return request(`/processes${toQuery({ skip, limit, organization_id: organizationId })}`);
+  listProcesses(skip = 0, limit = 50): Promise<Page<Process>> {
+    return request(`/processes${toQuery({ skip, limit })}`);
   },
   createProcess(payload: ProcessCreate): Promise<Process> {
     return request("/processes", { method: "POST", body: JSON.stringify(payload) });

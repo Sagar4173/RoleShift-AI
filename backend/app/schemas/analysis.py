@@ -154,6 +154,7 @@ class RoleAnalysisRead(BaseModel):
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
     id: ObjectIdStr
+    organization_id: ObjectIdStr
     role_id: ObjectIdStr
     analysis_version: str
     ai_exposure: AiExposureSummaryRead

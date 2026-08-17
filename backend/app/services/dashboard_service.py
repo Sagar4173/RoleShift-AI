@@ -40,9 +40,9 @@ class DashboardService:
         self._role_repo = RoleRepository()
         self._analysis_repo = RoleAnalysisRepository()
 
-    async def summary(self) -> DashboardSummary:
-        total_roles = await self._role_repo.count()
-        latest = await self._analysis_repo.all_grouped_latest()
+    async def summary(self, organization_id) -> DashboardSummary:
+        total_roles = await self._role_repo.count({"organization_id": organization_id})
+        latest = await self._analysis_repo.all_grouped_latest(organization_id)
 
         high_ai_impact = sum(
             1 for a in latest.values() if a.ai_exposure.level == ImpactLevel.HIGH
@@ -70,7 +70,7 @@ class DashboardService:
 
         top_future_skills = self._aggregate_future_skills(latest.values())[:10]
 
-        recent = await self._analysis_repo.list_recent(_RECENT_LIMIT)
+        recent = await self._analysis_repo.list_recent(organization_id, _RECENT_LIMIT)
         recent_role_analyses: list[RecentRoleAnalysisItem] = []
         for analysis in recent:
             role = await self._role_repo.get_by_id(analysis.role_id)
@@ -103,9 +103,9 @@ class DashboardService:
             recent_role_analyses=recent_role_analyses,
         )
 
-    async def skills_summary(self) -> SkillsSummary:
-        """Aggregate future-skill demand across analyzed roles."""
-        latest = await self._analysis_repo.all_grouped_latest()
+    async def skills_summary(self, organization_id) -> SkillsSummary:
+        """Aggregate future-skill demand across the organization's analyzed roles."""
+        latest = await self._analysis_repo.all_grouped_latest(organization_id)
 
         role_names: dict[object, str] = {}
         for analysis in latest.values():

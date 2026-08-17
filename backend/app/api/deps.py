@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-from fastapi import Request
+from fastapi import Depends, Request
 
 from app.core.config import Settings
 from app.core.exceptions import AppError
+from app.models.organization import Organization
 from app.models.user import User
+from app.repositories.organization import OrganizationRepository
 from app.services.auth.session_service import SessionService
 
 
@@ -33,3 +35,27 @@ async def get_current_user(request: Request) -> User:
     if user is None:
         raise AppError("Session is invalid or has expired", code="unauthorized", status_code=401)
     return user
+
+
+async def get_current_organization(user: User = Depends(get_current_user)) -> Organization:
+    """Resolve the canonical organization context for the authenticated user.
+
+    The organization is always derived from the user's own binding — never
+    from client-supplied values. A user without an organization binding, or
+    whose organization no longer exists, is refused (403) rather than
+    silently granted a tenant context.
+    """
+    if user.organization_id is None:
+        raise AppError(
+            "User has no organization context",
+            code="organization_required",
+            status_code=403,
+        )
+    organization = await OrganizationRepository().get_by_id(user.organization_id)
+    if organization is None:
+        raise AppError(
+            "Organization not found",
+            code="organization_not_found",
+            status_code=403,
+        )
+    return organization
