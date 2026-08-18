@@ -19,6 +19,7 @@ from app.api.deps import (
     ensure_roles,
     get_current_membership,
     get_current_organization,
+    rate_limit_by_user,
     require_roles,
 )
 from app.core.exceptions import AppError
@@ -72,6 +73,7 @@ async def change_member_role(
     payload: MemberRoleUpdate,
     organization: Organization = Depends(get_current_organization),
     membership: OrganizationMembership = Depends(get_current_membership),
+    _rate: None = Depends(rate_limit_by_user("member_mutation")),
 ) -> MemberRead:
     """Change a member's role, enforcing escalation and owner invariants.
 
@@ -95,6 +97,7 @@ async def remove_member(
     user_id: ObjectIdStr,
     organization: Organization = Depends(get_current_organization),
     membership: OrganizationMembership = Depends(get_current_membership),
+    _rate: None = Depends(rate_limit_by_user("member_mutation")),
 ) -> Response:
     """Remove a member from the caller's organization.
 

@@ -15,6 +15,8 @@ from app.api.routes.health import router as health_router
 from app.core.config import Settings, get_settings
 from app.core.exceptions import AppError
 from app.core.logging import get_logger, setup_logging
+from app.core.middleware import RequestSizeLimitMiddleware, SecurityHeadersMiddleware
+from app.core.rate_limit import InMemoryRateLimiter, build_policies
 from app.core import database
 
 logger = get_logger("main")
@@ -46,6 +48,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         openapi_url="/openapi.json" if expose_docs else None,
     )
     app.state.settings = settings
+    app.state.rate_limiter = InMemoryRateLimiter(build_policies(settings))
 
     app.add_middleware(
         CORSMiddleware,
@@ -53,6 +56,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+    )
+    # Middleware order: FastAPI prepends, so SecurityHeadersMiddleware
+    # (registered last) is the outermost layer and stamps even the 413
+    # responses produced by the size-limit middleware.
+    app.add_middleware(RequestSizeLimitMiddleware)
+    app.add_middleware(
+        SecurityHeadersMiddleware,
+        app_env=settings.app_env,
+        api_prefix=settings.api_v1_prefix,
     )
 
     app.include_router(api_router, prefix=settings.api_v1_prefix)
@@ -84,6 +96,7 @@ def register_exception_handlers(app: FastAPI) -> None:
         return JSONResponse(
             status_code=exc.status_code,
             content={"detail": {"code": exc.code, "message": exc.message}},
+            headers=exc.headers,
         )
 
     @app.exception_handler(RequestValidationError)

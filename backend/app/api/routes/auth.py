@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request, Response, status
 
-from app.api.deps import get_current_user, get_settings_dep
+from app.api.deps import get_current_user, get_settings_dep, rate_limit_by_ip
 from app.core.config import Settings
 from app.core.exceptions import AppError
 from app.models.user import User
@@ -53,6 +53,7 @@ async def register(
     payload: RegisterRequest,
     request: Request,
     response: Response,
+    _rate: None = Depends(rate_limit_by_ip("register")),
 ) -> UserRead:
     settings = get_settings_dep(request)
     user = await UserService(settings).register(
@@ -72,6 +73,7 @@ async def login(
     payload: LoginRequest,
     request: Request,
     response: Response,
+    _rate: None = Depends(rate_limit_by_ip("login")),
 ) -> UserRead:
     settings = get_settings_dep(request)
     user = await UserService(settings).authenticate(payload.email, payload.password)

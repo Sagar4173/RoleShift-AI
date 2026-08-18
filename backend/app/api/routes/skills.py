@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query, status
 
-from app.api.deps import require_roles
+from app.api.deps import rate_limit_by_user, require_roles
 from app.models.enums import MemberRole
 from app.models.organization_membership import OrganizationMembership
 from app.schemas.common import Page, PageMeta, pagination_params
@@ -40,6 +40,7 @@ async def list_skills(
 async def create_skill(
     payload: SkillCreate,
     _membership: OrganizationMembership = Depends(require_roles(*SKILL_WRITE_ROLES)),
+    _rate: None = Depends(rate_limit_by_user("skill_create")),
     service: SkillService = Depends(),
 ) -> SkillRead:
     skill = await service.create(payload)

@@ -63,6 +63,20 @@ class Settings(BaseSettings):
     auth_session_ttl_hours: int = Field(default=168, ge=1, le=8760)
     auth_password_min_length: int = Field(default=8, ge=6, le=128)
 
+    # Rate limiting - in-memory fixed-window limits (per application
+    # instance; see app/core/rate_limit.py for the multi-instance caveat).
+    # Authentication endpoints are keyed per client IP, authenticated
+    # endpoints per user. Tuned to block abuse without impeding workflows.
+    rate_limit_login_per_minute: int = Field(default=10, ge=1, le=10000)
+    rate_limit_register_per_minute: int = Field(default=5, ge=1, le=10000)
+    rate_limit_analyze_per_hour: int = Field(default=20, ge=1, le=100000)
+    rate_limit_analyze_new_per_hour: int = Field(default=10, ge=1, le=100000)
+    rate_limit_skills_update_per_minute: int = Field(default=30, ge=1, le=10000)
+    rate_limit_member_mutation_per_minute: int = Field(default=20, ge=1, le=10000)
+    rate_limit_role_create_per_minute: int = Field(default=20, ge=1, le=10000)
+    rate_limit_role_delete_per_minute: int = Field(default=20, ge=1, le=10000)
+    rate_limit_skill_create_per_minute: int = Field(default=20, ge=1, le=10000)
+
     @property
     def auth_cookie_secure(self) -> bool:
         """The session cookie is marked Secure in production.

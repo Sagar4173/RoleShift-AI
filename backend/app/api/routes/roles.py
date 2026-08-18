@@ -16,6 +16,7 @@ from app.api.deps import (
     get_current_organization,
     get_current_membership,
     get_settings_dep,
+    rate_limit_by_user,
     require_roles,
 )
 from app.core.config import Settings
@@ -94,6 +95,7 @@ async def create_role(
     payload: RoleCreate,
     organization: Organization = Depends(get_current_organization),
     _membership: OrganizationMembership = Depends(require_roles(*CONTENT_ROLES)),
+    _rate: None = Depends(rate_limit_by_user("role_create")),
     service: RoleService = Depends(),
 ) -> RoleRead:
     role = await service.create(payload, organization_id=_org_id(organization))
@@ -106,6 +108,7 @@ async def analyze_new_role(
     settings: Settings = Depends(get_settings_dep),
     organization: Organization = Depends(get_current_organization),
     membership: OrganizationMembership = Depends(require_roles(*CONTENT_ROLES)),
+    _rate: None = Depends(rate_limit_by_user("analyze_new")),
     analysis_service: AnalysisService = Depends(),
 ) -> AnalyzeNewResponse:
     """Create a role (with processes, activities, and skills) and run its first analysis.
@@ -186,6 +189,7 @@ async def update_role_current_skills(
     payload: RoleCurrentSkillsUpdate,
     organization: Organization = Depends(get_current_organization),
     membership: OrganizationMembership = Depends(get_current_membership),
+    _rate: None = Depends(rate_limit_by_user("current_skills")),
     role_service: RoleService = Depends(),
 ) -> RoleRead:
     """Replace the role's current skills (resolved against the catalogue).
@@ -223,6 +227,7 @@ async def delete_role(
     role_id: ObjectIdStr,
     organization: Organization = Depends(get_current_organization),
     membership: OrganizationMembership = Depends(get_current_membership),
+    _rate: None = Depends(rate_limit_by_user("role_delete")),
     service: RoleService = Depends(),
 ) -> Response:
     """Delete a role from the caller's organization (OWNER/ADMIN only).

@@ -9,6 +9,7 @@ from fastapi import Depends, Request
 
 from app.core.config import Settings
 from app.core.exceptions import AppError
+from app.core.rate_limit import InMemoryRateLimiter, client_ip, rate_limited_error
 from app.models.enums import MemberRole
 from app.models.organization import Organization
 from app.models.organization_membership import OrganizationMembership
@@ -123,3 +124,40 @@ def ensure_roles(membership: OrganizationMembership, *roles: MemberRole) -> None
             code="insufficient_permissions",
             status_code=403,
         )
+
+
+def rate_limit_by_ip(policy: str) -> Callable[..., Awaitable[None]]:
+    """Guard for unauthenticated endpoints: fixed-window limit keyed by IP.
+
+    Runs before any body validation or handler work, so abusive traffic
+    (invalid logins, signup floods) is throttled without doing real work.
+    """
+
+    async def _guard(request: Request) -> None:
+        limiter: InMemoryRateLimiter = request.app.state.rate_limiter
+        allowed, retry_after = limiter.check(policy, client_ip(request))
+        if not allowed:
+            raise rate_limited_error(retry_after)
+
+    return _guard
+
+
+def rate_limit_by_user(policy: str) -> Callable[..., Awaitable[None]]:
+    """Guard for authenticated endpoints: limit keyed by the caller's membership.
+
+    Depends on ``get_current_membership`` (cached per request by FastAPI,
+    so routes that already resolve the membership pay nothing extra);
+    authentication and RBAC therefore run before the limit is consulted,
+    preserving existing 401/403 semantics.
+    """
+
+    async def _guard(
+        request: Request,
+        membership: OrganizationMembership = Depends(get_current_membership),
+    ) -> None:
+        limiter: InMemoryRateLimiter = request.app.state.rate_limiter
+        allowed, retry_after = limiter.check(policy, str(membership.user_id))
+        if not allowed:
+            raise rate_limited_error(retry_after)
+
+    return _guard

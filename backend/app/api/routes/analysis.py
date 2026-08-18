@@ -15,6 +15,7 @@ from app.api.deps import (
     get_current_organization,
     get_current_membership,
     get_settings_dep,
+    rate_limit_by_user,
 )
 from app.core.config import Settings
 from app.core.exceptions import AppError
@@ -71,6 +72,7 @@ async def analyze_role(
     settings: Settings = Depends(get_settings_dep),
     organization: Organization = Depends(get_current_organization),
     membership: OrganizationMembership = Depends(get_current_membership),
+    _rate: None = Depends(rate_limit_by_user("analyze")),
     role_service: RoleService = Depends(),
     service: AnalysisService = Depends(),
 ) -> RoleAnalysisRead:
