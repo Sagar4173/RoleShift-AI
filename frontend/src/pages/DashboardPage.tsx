@@ -22,6 +22,7 @@ import { StatCard } from "../components/ui/StatCard";
 import { ImpactBadge } from "../components/ui/ImpactBadge";
 import { PriorityBadge } from "../components/ui/PriorityBadge";
 import { useApi } from "../hooks/useApi";
+import { useAuth } from "../context/AuthContext";
 import { formatDate, formatPercent } from "../lib/utils";
 import { api } from "../services/api";
 import type { RecentRoleAnalysisItem } from "../types/api";
@@ -80,6 +81,9 @@ function TopOpportunities({
 }
 
 export function DashboardPage() {
+  const { user } = useAuth();
+  const canAnalyze = user?.role !== null && user?.role !== undefined && ["owner", "admin", "analyst"].includes(user.role);
+
   const summary = useApi(() => api.getDashboardSummary());
   const activities = useApi(() => api.listActivities(0, 1));
 
@@ -127,10 +131,12 @@ export function DashboardPage() {
         title="Workforce AI Intelligence"
         description="Understand how AI transforms your workforce: which roles carry the highest exposure, which skills are becoming essential, and where to act first."
         actions={
-          <Link to="/app/new-role-analysis" className="btn btn-primary">
-            <Sparkles size={14} aria-hidden="true" />
-            New Role Analysis
-          </Link>
+          canAnalyze ? (
+            <Link to="/app/new-role-analysis" className="btn btn-primary">
+              <Sparkles size={14} aria-hidden="true" />
+              New Role Analysis
+            </Link>
+          ) : undefined
         }
       />
 
@@ -173,10 +179,12 @@ export function DashboardPage() {
               title="Analyze your first role"
               description="Enter a role (e.g. Supply Chain Manager) and RoleShift AI will run a real AI analysis, then build its intelligence view here."
               action={
-                <Link to="/app/new-role-analysis" className="btn btn-primary">
-                  <Sparkles size={15} aria-hidden="true" />
-                  Analyze a new role
-                </Link>
+                canAnalyze ? (
+                  <Link to="/app/new-role-analysis" className="btn btn-primary">
+                    <Sparkles size={15} aria-hidden="true" />
+                    Analyze a new role
+                  </Link>
+                ) : undefined
               }
             />
           </Card>

@@ -9,14 +9,18 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, status
 
-from app.api.deps import get_current_organization
+from app.api.deps import get_current_organization, require_roles
 from app.core.exceptions import AppError
+from app.models.enums import MemberRole
 from app.models.organization import Organization
+from app.models.organization_membership import OrganizationMembership
 from app.schemas.common import ObjectIdStr, Page, PageMeta, pagination_params
 from app.schemas.process import ProcessCreate, ProcessRead
 from app.services.process_service import ProcessService
 
 router = APIRouter(prefix="/processes", tags=["processes"])
+
+CONTENT_ROLES = (MemberRole.OWNER, MemberRole.ADMIN, MemberRole.ANALYST)
 
 
 def _org_id(organization: Organization) -> ObjectIdStr:
@@ -61,6 +65,7 @@ async def get_process(
 async def create_process(
     payload: ProcessCreate,
     organization: Organization = Depends(get_current_organization),
+    _membership: OrganizationMembership = Depends(require_roles(*CONTENT_ROLES)),
     service: ProcessService = Depends(),
 ) -> ProcessRead:
     process = await service.create(payload, _org_id(organization))

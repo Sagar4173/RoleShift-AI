@@ -9,14 +9,18 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query, status
 
-from app.api.deps import get_current_organization
+from app.api.deps import get_current_organization, require_roles
 from app.core.exceptions import AppError
+from app.models.enums import MemberRole
 from app.models.organization import Organization
+from app.models.organization_membership import OrganizationMembership
 from app.schemas.activity import ActivityCreate, ActivityRead
 from app.schemas.common import ObjectIdStr, Page, PageMeta, pagination_params
 from app.services.activity_service import ActivityService
 
 router = APIRouter(prefix="/activities", tags=["activities"])
+
+CONTENT_ROLES = (MemberRole.OWNER, MemberRole.ADMIN, MemberRole.ANALYST)
 
 
 def _org_id(organization: Organization) -> ObjectIdStr:
@@ -56,6 +60,7 @@ async def list_activities(
 async def create_activity(
     payload: ActivityCreate,
     organization: Organization = Depends(get_current_organization),
+    _membership: OrganizationMembership = Depends(require_roles(*CONTENT_ROLES)),
     service: ActivityService = Depends(),
 ) -> ActivityRead:
     activity = await service.create(payload, _org_id(organization))

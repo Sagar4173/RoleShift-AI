@@ -9,6 +9,7 @@ import {
   Radar,
   Settings,
   Sparkles,
+  Users,
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -17,6 +18,10 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-do
 import { useAuth } from "../context/AuthContext";
 import { useConnectivity } from "../hooks/useConnectivity";
 import { cn } from "../lib/utils";
+import type { MemberRole } from "../types/api";
+
+const CONTENT_ANALYSIS_ROLES: MemberRole[] = ["owner", "admin", "analyst"];
+const MEMBER_MANAGER_ROLES: MemberRole[] = ["owner", "admin"];
 
 const primaryNavigation = [
   { to: "/app", label: "Overview", icon: LayoutDashboard, end: true },
@@ -33,6 +38,7 @@ function sectionTitle(pathname: string): string {
   if (pathname.startsWith("/app/compare")) return "Compare Roles";
   if (pathname.startsWith("/app/new-role-analysis")) return "New Role Analysis";
   if (pathname.startsWith("/app/skills")) return "Skills & Reskilling";
+  if (pathname.startsWith("/app/members")) return "Members";
   if (pathname.startsWith("/app/settings")) return "Settings";
   return "Overview";
 }
@@ -60,8 +66,19 @@ interface NavItemsProps {
 }
 
 function NavItems({ onNavigate }: NavItemsProps) {
+  const { user } = useAuth();
+  const role = user?.role ?? null;
   const items = [
-    ...primaryNavigation.map((item) => ({ ...item, section: "Workspace" })),
+    ...primaryNavigation
+      .filter(
+        (item) =>
+          item.to !== "/app/new-role-analysis" ||
+          (role !== null && CONTENT_ANALYSIS_ROLES.includes(role)),
+      )
+      .map((item) => ({ ...item, section: "Workspace" })),
+    ...(role !== null && MEMBER_MANAGER_ROLES.includes(role)
+      ? [{ to: "/app/members", label: "Members", icon: Users, end: false as const, section: "Workspace" }]
+      : []),
     ...secondaryNavigation.map((item) => ({ ...item, section: "Platform" })),
   ];
   let lastSection = "";
@@ -138,6 +155,11 @@ function SidebarFooter() {
         <div className="min-w-0">
           <p className="truncate text-xs font-medium text-white">{user?.display_name}</p>
           <p className="truncate text-[11px] text-ink-chrome-muted">{user?.email}</p>
+          {user?.role && (
+            <span className="mt-0.5 inline-block rounded-full border border-brand-500/30 bg-brand-500/10 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-brand-300">
+              {user.role}
+            </span>
+          )}
         </div>
         <button
           type="button"
@@ -272,17 +294,21 @@ export function AppLayout() {
 
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
             <ConnectionStatus />
-            <Link to="/app/new-role-analysis" className="btn btn-primary hidden sm:inline-flex">
-              <Sparkles size={14} aria-hidden="true" />
-              New Role Analysis
-            </Link>
-            <Link
-              to="/app/new-role-analysis"
-              className="btn btn-primary sm:hidden"
-              aria-label="New Role Analysis"
-            >
-              <Sparkles size={14} aria-hidden="true" />
-            </Link>
+            {user?.role !== null && CONTENT_ANALYSIS_ROLES.includes(user?.role ?? "viewer") && (
+              <>
+                <Link to="/app/new-role-analysis" className="btn btn-primary hidden sm:inline-flex">
+                  <Sparkles size={14} aria-hidden="true" />
+                  New Role Analysis
+                </Link>
+                <Link
+                  to="/app/new-role-analysis"
+                  className="btn btn-primary sm:hidden"
+                  aria-label="New Role Analysis"
+                >
+                  <Sparkles size={14} aria-hidden="true" />
+                </Link>
+              </>
+            )}
             <div
               className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 text-xs font-semibold text-brand-700"
               aria-hidden="true"

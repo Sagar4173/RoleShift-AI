@@ -2,6 +2,7 @@ export type RoleStatus = "active" | "inactive";
 export type HumanInvolvement = "full" | "partial" | "none";
 export type ImpactLevel = "none" | "low" | "medium" | "high";
 export type ReskillingPriority = "low" | "medium" | "high" | "critical";
+export type MemberRole = "owner" | "admin" | "analyst" | "viewer";
 
 export interface PageMeta {
   skip: number;
@@ -281,10 +282,23 @@ export interface ErrorResponse {
 
 export interface AuthUser {
   id: string;
-  organization_id: string;
+  organization_id: string | null;
   email: string;
   display_name: string;
+  role: MemberRole | null;
   created_at: string;
+}
+
+export interface Member {
+  user_id: string;
+  email: string;
+  display_name: string;
+  role: MemberRole;
+  joined_at: string;
+}
+
+export interface MemberRoleUpdate {
+  role: MemberRole;
 }
 
 export interface RegisterRequest {

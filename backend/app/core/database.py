@@ -19,6 +19,7 @@ logger = get_logger("core.database")
 from app.models.activity import Activity
 from app.models.analysis_run import AnalysisRun
 from app.models.organization import Organization
+from app.models.organization_membership import OrganizationMembership
 from app.models.process import Process
 from app.models.role import Role
 from app.models.role_analysis import RoleAnalysis
@@ -29,6 +30,7 @@ from app.models.user import User
 
 DOCUMENT_MODELS = [
     Organization,
+    OrganizationMembership,
     Role,
     Process,
     Activity,

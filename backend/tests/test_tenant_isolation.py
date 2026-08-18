@@ -18,7 +18,9 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from beanie import PydanticObjectId
 from fastapi.testclient import TestClient
+from app.models.enums import MemberRole
 from app.models.organization import Organization
+from app.models.organization_membership import OrganizationMembership
 from app.models.user import User
 
 from tests.conftest import (
@@ -55,9 +57,28 @@ def _org_by_name(name: str) -> PydanticObjectId:
 
 
 def _reassign_user(email: str, organization_id: PydanticObjectId) -> None:
+    """Move a user to another organization (membership included).
+
+    Phase 6.4: authorization lives in OrganizationMembership, so the
+    membership must move with the user. The user becomes the first member
+    (OWNER) of the target organization, mirroring the registration rule
+    for the organization's first user.
+    """
     user = run_async(User.find_one(User.email == email))
-    assert user is not None
+    assert user is not None and user.id is not None
     run_async(user.set({User.organization_id: organization_id}))
+    membership = run_async(
+        OrganizationMembership.find_one(OrganizationMembership.user_id == user.id)
+    )
+    assert membership is not None
+    run_async(
+        membership.set(
+            {
+                OrganizationMembership.organization_id: organization_id,
+                OrganizationMembership.role: MemberRole.OWNER,
+            }
+        )
+    )
 
 
 def test_registration_binds_to_oldest_organization(anon_client: TestClient) -> None:

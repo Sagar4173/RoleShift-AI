@@ -17,8 +17,15 @@ from app.models.user import User
 from app.schemas.auth import LoginRequest, RegisterRequest, UserRead
 from app.services.auth.session_service import SessionService
 from app.services.auth.user_service import UserService
+from app.services.membership_service import MembershipService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+async def _user_read_with_role(user: User) -> UserRead:
+    """Serialize the user with their role in the resolved organization."""
+    role = await MembershipService().role_for_user_in_org(user.id, user.organization_id)
+    return UserRead.from_user(user, role=role)
 
 
 def _session_cookie(
@@ -57,7 +64,7 @@ async def register(
         raise RuntimeError("User created without an id")
     raw_token, _ = await SessionService(settings).create(user.id)
     _attach_session(response, settings, raw_token, settings.auth_session_ttl_hours)
-    return UserRead.from_user(user)
+    return await _user_read_with_role(user)
 
 
 @router.post("/login", response_model=UserRead)
@@ -79,7 +86,7 @@ async def login(
         raise RuntimeError("User loaded without an id")
     raw_token, _ = await SessionService(settings).create(user.id)
     _attach_session(response, settings, raw_token, settings.auth_session_ttl_hours)
-    return UserRead.from_user(user)
+    return await _user_read_with_role(user)
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
@@ -101,4 +108,4 @@ async def logout(
 
 @router.get("/me", response_model=UserRead)
 async def me(user: User = Depends(get_current_user)) -> UserRead:
-    return UserRead.from_user(user)
+    return await _user_read_with_role(user)

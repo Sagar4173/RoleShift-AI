@@ -11,10 +11,18 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query, Response, status
 
-from app.api.deps import get_current_organization, get_settings_dep
+from app.api.deps import (
+    ensure_roles,
+    get_current_organization,
+    get_current_membership,
+    get_settings_dep,
+    require_roles,
+)
 from app.core.config import Settings
 from app.core.exceptions import AppError
+from app.models.enums import MemberRole
 from app.models.organization import Organization
+from app.models.organization_membership import OrganizationMembership
 from app.models.role import Role
 from app.models.role_analysis import RoleAnalysis
 from app.schemas.analysis import (
@@ -35,6 +43,9 @@ from app.services.ai.base import AIProviderError
 from app.services.role_service import RoleService
 
 router = APIRouter(prefix="/roles", tags=["roles"])
+
+CONTENT_ROLES = (MemberRole.OWNER, MemberRole.ADMIN, MemberRole.ANALYST)
+DESTRUCTIVE_ROLES = (MemberRole.OWNER, MemberRole.ADMIN)
 
 
 def _org_id(organization: Organization) -> ObjectIdStr:
@@ -82,6 +93,7 @@ async def list_roles(
 async def create_role(
     payload: RoleCreate,
     organization: Organization = Depends(get_current_organization),
+    _membership: OrganizationMembership = Depends(require_roles(*CONTENT_ROLES)),
     service: RoleService = Depends(),
 ) -> RoleRead:
     role = await service.create(payload, organization_id=_org_id(organization))
@@ -93,6 +105,7 @@ async def analyze_new_role(
     payload: AnalyzeNewRequest,
     settings: Settings = Depends(get_settings_dep),
     organization: Organization = Depends(get_current_organization),
+    membership: OrganizationMembership = Depends(require_roles(*CONTENT_ROLES)),
     role_service: RoleService = Depends(),
     analysis_service: AnalysisService = Depends(),
 ) -> AnalyzeNewResponse:
@@ -102,6 +115,10 @@ async def analyze_new_role(
     AnalysisRun records are all persisted inside the authenticated user's
     organization. Returns both so the UI can navigate straight to the
     role's intelligence view.
+
+    The global skill catalogue is only extended by OWNER/ADMIN: an ANALYST
+    referencing a skill name that does not exist in the catalogue receives a
+    422 (``skill_not_found_in_catalogue``) before any write.
     """
     role = await role_service.create_with_context(
         organization_id=_org_id(organization),
@@ -110,6 +127,7 @@ async def analyze_new_role(
         industry=payload.industry,
         processes=payload.processes,
         current_skills=payload.current_skills,
+        allow_skill_catalogue_create=membership.role in DESTRUCTIVE_ROLES,
     )
     if role.id is None:
         raise AppError(
@@ -172,11 +190,25 @@ async def update_role_current_skills(
     role_id: ObjectIdStr,
     payload: RoleCurrentSkillsUpdate,
     organization: Organization = Depends(get_current_organization),
+    membership: OrganizationMembership = Depends(get_current_membership),
     role_service: RoleService = Depends(),
 ) -> RoleRead:
-    """Replace the role's current skills (resolved against the catalogue)."""
+    """Replace the role's current skills (resolved against the catalogue).
+
+    Phase 6.4: the resource is resolved inside the caller's organization
+    FIRST (foreign/missing -> 404, no existence oracle), then the role
+    permission is checked (403), then the write happens. The global skill
+    catalogue is only extended by OWNER/ADMIN: an ANALYST referencing a
+    skill name that does not exist receives a 422
+    (``skill_not_found_in_catalogue``) before any write.
+    """
+    await role_service.get(role_id, _org_id(organization))
+    ensure_roles(membership, *CONTENT_ROLES)
     role = await role_service.set_current_skills(
-        role_id, payload.skills, _org_id(organization)
+        role_id,
+        payload.skills,
+        _org_id(organization),
+        allow_skill_catalogue_create=membership.role in DESTRUCTIVE_ROLES,
     )
     return RoleRead.model_validate(role)
 
@@ -195,7 +227,15 @@ async def get_role(
 async def delete_role(
     role_id: ObjectIdStr,
     organization: Organization = Depends(get_current_organization),
+    membership: OrganizationMembership = Depends(get_current_membership),
     service: RoleService = Depends(),
 ) -> Response:
+    """Delete a role from the caller's organization (OWNER/ADMIN only).
+
+    404-before-403 ordering: a foreign or missing role is a 404 regardless
+    of the caller's role; an in-org role with insufficient permission is 403.
+    """
+    await service.get(role_id, _org_id(organization))
+    ensure_roles(membership, *DESTRUCTIVE_ROLES)
     await service.delete(role_id, _org_id(organization))
     return Response(status_code=status.HTTP_204_NO_CONTENT)

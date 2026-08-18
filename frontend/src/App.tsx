@@ -6,6 +6,7 @@ import { AppLayout } from "./layouts/AppLayout";
 import { DashboardPage } from "./pages/DashboardPage";
 import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
+import { MembersPage } from "./pages/MembersPage";
 import { NewRoleAnalysisPage } from "./pages/NewRoleAnalysisPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { RoleComparisonPage } from "./pages/RoleComparisonPage";
@@ -45,6 +46,7 @@ export function App() {
             <Route path="new-role-analysis" element={<NewRoleAnalysisPage />} />
             <Route path="compare" element={<RoleComparisonPage />} />
             <Route path="skills" element={<SkillsPage />} />
+            <Route path="members" element={<MembersPage />} />
             <Route path="settings" element={<SettingsPage />} />
           </Route>
         </Route>

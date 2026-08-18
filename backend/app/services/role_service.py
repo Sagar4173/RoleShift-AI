@@ -58,14 +58,17 @@ class RoleService:
         industry: str | None,
         processes: list,
         current_skills: list[str],
+        allow_skill_catalogue_create: bool,
     ) -> Role:
         """Create a role together with its processes, activities, and skills.
 
         Processes and activities are created as real documents (activities are
         linked to the role), and ``current_skills`` are resolved against the
-        global skill catalogue (creating catalogue entries as needed) and
-        linked onto the role. Any document whose id cannot be persisted is
-        skipped, leaving a consistent, useful role.
+        global skill catalogue and linked onto the role. Missing catalogue
+        names are only created when ``allow_skill_catalogue_create`` is true
+        (OWNER/ADMIN flows); otherwise a missing name is a 422 and nothing is
+        written. Any document whose id cannot be persisted is skipped, leaving
+        a consistent, useful role.
         """
         role = await self.create(
             RoleCreate(
@@ -108,28 +111,53 @@ class RoleService:
                 )
                 sequence += 1
 
-        await self._replace_current_skills(role, current_skills)
+        await self._replace_current_skills(
+            role, current_skills, allow_skill_catalogue_create=allow_skill_catalogue_create
+        )
         return role
 
     async def _replace_current_skills(
-        self, role: Role, skill_names: list[str]
+        self,
+        role: Role,
+        skill_names: list[str],
+        *,
+        allow_skill_catalogue_create: bool,
     ) -> None:
-        """Resolve skill names against the catalogue and relink the role."""
+        """Resolve skill names against the catalogue and relink the role.
+
+        Missing catalogue names are created only when the caller is
+        explicitly authorized to extend the global catalogue (OWNER/ADMIN);
+        otherwise a missing name raises a deterministic 422 and the role is
+        left untouched (fail before any write — no partial mutation).
+        """
         skill_service = SkillService()
         skill_ids: list[PydanticObjectId] = []
         for skill_name in skill_names:
-            skill = await skill_service.get_or_create_by_name(skill_name)
+            skill = await skill_service.get_or_create_by_name(
+                skill_name, allow_create=allow_skill_catalogue_create
+            )
             if skill.id is not None:
                 skill_ids.append(skill.id)
         role.current_skill_ids = skill_ids
         await self.repository.update(role)
 
     async def set_current_skills(
-        self, role_id, skill_names: list[str], organization_id: PydanticObjectId
+        self,
+        role_id,
+        skill_names: list[str],
+        organization_id: PydanticObjectId,
+        *,
+        allow_skill_catalogue_create: bool,
     ) -> Role:
-        """Replace a role's current skills by name, then return the role."""
+        """Replace a role's current skills by name, then return the role.
+
+        Catalogue creation semantics match ``_replace_current_skills``: only
+        authorized callers (OWNER/ADMIN) may introduce missing names.
+        """
         role = await self.get(role_id, organization_id)
-        await self._replace_current_skills(role, skill_names)
+        await self._replace_current_skills(
+            role, skill_names, allow_skill_catalogue_create=allow_skill_catalogue_create
+        )
         return role
 
     async def get(self, role_id, organization_id: PydanticObjectId) -> Role:

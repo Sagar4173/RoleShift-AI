@@ -16,8 +16,9 @@ import { SkillTransformation } from "../components/SkillTransformation";
 import { TransformationFlow } from "../components/TransformationFlow";
 import { WhyBox } from "../components/ui/WhyBox";
 import { useApi } from "../hooks/useApi";
+import { useAuth } from "../context/AuthContext";
 import { api } from "../services/api";
-import type { ActivityImpact, ReskillingPriority } from "../types/api";
+import type { ActivityImpact, MemberRole, ReskillingPriority } from "../types/api";
 
 const RECOMMENDATION_VERB: Record<ReskillingPriority, string> = {
   critical: "Act now",
@@ -25,6 +26,9 @@ const RECOMMENDATION_VERB: Record<ReskillingPriority, string> = {
   medium: "Plan",
   low: "Monitor",
 };
+
+const CAN_ANALYZE: MemberRole[] = ["owner", "admin", "analyst"];
+const CAN_FORCE: MemberRole[] = ["owner", "admin"];
 
 function recommendationVerb(priority: ReskillingPriority): string {
   return RECOMMENDATION_VERB[priority] ?? "Recommendation";
@@ -61,6 +65,10 @@ function ImpactRow({
 
 export function RoleDetailPage() {
   const { roleId = "" } = useParams<{ roleId: string }>();
+  const { user } = useAuth();
+  const roleName = user?.role ?? null;
+  const canAnalyze = roleName !== null && CAN_ANALYZE.includes(roleName);
+  const canForce = roleName !== null && CAN_FORCE.includes(roleName);
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
 
@@ -151,7 +159,8 @@ export function RoleDetailPage() {
               <button
                 type="button"
                 onClick={() => runAnalysis(true)}
-                disabled={analyzing}
+                disabled={analyzing || !canForce}
+                title={canForce ? undefined : "Re-analyzing requires admin access"}
                 className="btn btn-secondary"
               >
                 <RefreshCw size={13} aria-hidden="true" />
@@ -161,7 +170,8 @@ export function RoleDetailPage() {
               <button
                 type="button"
                 onClick={() => runAnalysis(false)}
-                disabled={analyzing}
+                disabled={analyzing || !canAnalyze}
+                title={canAnalyze ? undefined : "Analysis requires owner, admin, or analyst access"}
                 className="btn btn-primary"
               >
                 <BrainCircuit size={15} aria-hidden="true" />
@@ -195,7 +205,13 @@ export function RoleDetailPage() {
               title="This role hasn't been analyzed"
               description="Run the AI pipeline against this role to persist its exposure, automation, augmentation, and future-role profile."
               action={
-                <button type="button" onClick={() => runAnalysis(false)} disabled={analyzing} className="btn btn-primary">
+                <button
+                  type="button"
+                  onClick={() => runAnalysis(false)}
+                  disabled={analyzing || !canAnalyze}
+                  title={canAnalyze ? undefined : "Analysis requires owner, admin, or analyst access"}
+                  className="btn btn-primary"
+                >
                   <BrainCircuit size={15} aria-hidden="true" />
                   Analyze Role
                 </button>

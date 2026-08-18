@@ -15,11 +15,13 @@ from app.services.auth.security import hash_token, new_session_token
 
 
 class SessionService:
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings
         self.repository = SessionRepository()
 
     def cookie_name(self) -> str:
+        if self.settings is None:  # pragma: no cover - only used with settings present
+            raise RuntimeError("SessionService requires settings for cookie operations")
         return self.settings.auth_cookie_name
 
     async def create(self, user_id: PydanticObjectId) -> tuple[str, Session]:
@@ -28,6 +30,8 @@ class SessionService:
         The raw token is returned exactly once (to be placed in the cookie);
         only its hash is stored.
         """
+        if self.settings is None:  # pragma: no cover - only used with settings present
+            raise RuntimeError("SessionService requires settings to create sessions")
         raw_token = new_session_token()
         session = Session(
             user_id=user_id,
@@ -60,6 +64,10 @@ class SessionService:
         if not token:
             return
         await self.repository.delete_by_token_hash(hash_token(token))
+
+    async def revoke_all_for_user(self, user_id: PydanticObjectId) -> None:
+        """Revoke every session belonging to a user (used on membership removal)."""
+        await self.repository.delete_for_user(user_id)
 
     async def prune_expired(self) -> None:
         """Best-effort cleanup of expired sessions."""

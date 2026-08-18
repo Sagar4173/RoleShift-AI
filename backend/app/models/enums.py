@@ -46,3 +46,19 @@ class ReskillingPriority(str, Enum):
     MEDIUM = "medium"
     HIGH = "high"
     CRITICAL = "critical"
+
+
+class MemberRole(str, Enum):
+    """Organization membership role (Phase 6.4 RBAC).
+
+    OWNER is the org anchor: last-owner invariants prevent an organization
+    from ever reaching zero owners. ADMIN manages the org operationally
+    (destructive actions, AI spend, member management for non-owner roles).
+    ANALYST performs the core product work including cost-bearing analysis.
+    VIEWER is read-only: no mutations and no AI spend.
+    """
+
+    OWNER = "owner"
+    ADMIN = "admin"
+    ANALYST = "analyst"
+    VIEWER = "viewer"

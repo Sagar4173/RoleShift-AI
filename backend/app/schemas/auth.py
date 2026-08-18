@@ -42,15 +42,17 @@ class UserRead(BaseModel):
     id: str
     email: str
     display_name: str
-    organization_id: str
+    organization_id: str | None
+    role: str | None = None
     created_at: str
 
     @classmethod
-    def from_user(cls, user) -> "UserRead":
+    def from_user(cls, user, role: str | None = None) -> "UserRead":
         return cls(
             id=str(user.id),
             email=user.email,
             display_name=user.display_name,
-            organization_id=str(user.organization_id),
+            organization_id=str(user.organization_id) if user.organization_id else None,
+            role=role,
             created_at=user.created_at.isoformat(),
         )

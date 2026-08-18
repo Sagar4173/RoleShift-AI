@@ -5,7 +5,9 @@ import { useNavigate } from "react-router-dom";
 import { AnalysisLoading } from "../components/AnalysisLoading";
 import { Card } from "../components/ui/Card";
 import { ErrorState } from "../components/ui/ErrorState";
+import { ForbiddenState } from "../components/ui/ForbiddenState";
 import { PageHeader } from "../components/ui/PageHeader";
+import { useAuth } from "../context/AuthContext";
 import { api } from "../services/api";
 
 const INDUSTRY_SUGGESTIONS = [
@@ -54,6 +56,8 @@ function SectionHeading({ step, children }: { step: string; children: React.Reac
 
 export function NewRoleAnalysisPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const role = user?.role ?? null;
   const [name, setName] = useState("");
   const [industry, setIndustry] = useState("");
   const [description, setDescription] = useState("");
@@ -114,6 +118,22 @@ export function NewRoleAnalysisPage() {
       setSubmitting(false);
     }
   };
+
+  if (role === null || !["owner", "admin", "analyst"].includes(role)) {
+    return (
+      <div className="animate-fade-up">
+        <PageHeader
+          eyebrow="Workspace"
+          title="New Role Analysis"
+          description="Analyze any role to build its AI intelligence profile."
+        />
+        <ForbiddenState
+          title="New role analysis isn't available to your role"
+          description="Only owner, admin, and analyst members can run role analyses. Contact an owner or admin to upgrade your access."
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="animate-fade-up">

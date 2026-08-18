@@ -7,6 +7,9 @@ import type {
   AuthUser,
   DashboardSummary,
   LoginRequest,
+  Member,
+  MemberRole,
+  MemberRoleUpdate,
   Organization,
   Page,
   Process,
@@ -114,6 +117,18 @@ export const api = {
   },
   getOrganization(id: string): Promise<Organization> {
     return request(`/organizations/${id}`);
+  },
+  listMembers(skip = 0, limit = 100): Promise<Page<Member>> {
+    return request(`/organizations/members${toQuery({ skip, limit })}`);
+  },
+  changeMemberRole(userId: string, role: MemberRole): Promise<Member> {
+    return request(`/organizations/members/${userId}`, {
+      method: "PUT",
+      body: JSON.stringify({ role } satisfies MemberRoleUpdate),
+    });
+  },
+  removeMember(userId: string): Promise<void> {
+    return request(`/organizations/members/${userId}`, { method: "DELETE" });
   },
 
   // Roles
