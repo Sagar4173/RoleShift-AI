@@ -4,6 +4,7 @@ import type { FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext";
+import { describeApiError, fieldErrorsFor } from "../lib/apiErrors";
 import { ApiError } from "../services/api";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -71,11 +72,19 @@ export function SignupPage() {
       navigate(from ?? "/app", { replace: true });
     } catch (err) {
       if (err instanceof ApiError) {
-        setFormError(
-          err.status === 409
-            ? "An account with this email already exists. Try signing in instead."
-            : err.message,
-        );
+        if (err.status === 409) {
+          setFormError(
+            "An account with this email already exists. Try signing in instead.",
+          );
+        } else {
+          const mapped = fieldErrorsFor(err, {
+            display_name: "displayName",
+            email: "email",
+            password: "password",
+          });
+          setFieldErrors((previous) => ({ ...previous, ...mapped }));
+          setFormError(describeApiError(err).message);
+        }
       } else {
         setFormError("Unable to create your account. Please try again.");
       }
@@ -239,6 +248,16 @@ export function SignupPage() {
             Sign in
           </Link>
         </p>
+
+        <div className="mt-6 rounded-lg border border-border-faint bg-surface-card px-3 py-3 text-xs leading-relaxed text-ink-secondary">
+          <p className="font-medium text-ink-primary">Joining the RoleShift workspace</p>
+          <p className="mt-1">
+            Creating an account joins the existing RoleShift workspace. New members start as{" "}
+            <span className="font-medium text-ink-primary">Viewers</span>: you can explore role
+            analyses, compare roles, and browse the skill catalogue. Owners and admins can change
+            your role when needed.
+          </p>
+        </div>
       </div>
     </div>
   );

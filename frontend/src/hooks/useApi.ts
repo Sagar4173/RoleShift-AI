@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { ApiError } from "../services/api";
+
 interface UseApiState<T> {
   data: T | null;
   loading: boolean;
-  error: string | null;
+  error: ApiError | null;
   refetch: () => void;
 }
 
@@ -21,7 +23,7 @@ export function useApi<T>(
 ): UseApiState<T> {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ApiError | null>(null);
   const [tick, setTick] = useState(0);
   const fetcherRef = useRef(fetcher);
   fetcherRef.current = fetcher;
@@ -37,7 +39,17 @@ export function useApi<T>(
         if (!cancelled) setData(result);
       })
       .catch((err: unknown) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Unknown error");
+        if (!cancelled) {
+          setError(
+            err instanceof ApiError
+              ? err
+              : new ApiError(
+                  0,
+                  "unknown_error",
+                  err instanceof Error ? err.message : "Unknown error",
+                ),
+          );
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

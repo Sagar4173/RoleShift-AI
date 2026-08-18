@@ -36,7 +36,7 @@ export function SkillsPage() {
             <Skeleton className="h-14" />
           </div>
         ) : demand.error ? (
-          <ErrorState title="Could not load reskilling demand" description={demand.error} onRetry={demand.refetch} />
+          <ErrorState title="Could not load reskilling demand" error={demand.error} onRetry={demand.refetch} />
         ) : demand.data && demand.data.items.length > 0 ? (
           <ol className="space-y-4">
             {demand.data.items.map((item, index) => (
@@ -104,7 +104,7 @@ export function SkillsPage() {
               <Skeleton className="h-10" />
             </div>
           ) : catalogue.error ? (
-            <ErrorState title="Could not load the skill catalogue" description={catalogue.error} onRetry={catalogue.refetch} />
+            <ErrorState title="Could not load the skill catalogue" error={catalogue.error} onRetry={catalogue.refetch} />
           ) : catalogue.data && catalogue.data.items.length > 0 ? (
             <ul className="divide-y divide-border-faint">
               {catalogue.data.items.map((skill) => (

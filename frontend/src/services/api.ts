@@ -26,15 +26,30 @@ import type {
   SkillsSummary,
 } from "../types/api";
 
+export interface ApiFieldError {
+  field: string;
+  type: string;
+  message: string;
+}
+
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string;
+  readonly retryAfter: number | null;
+  readonly errors: ApiFieldError[];
 
-  constructor(status: number, code: string, message: string) {
+  constructor(
+    status: number,
+    code: string,
+    message: string,
+    options?: { retryAfter?: number | null; errors?: ApiFieldError[] },
+  ) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
+    this.retryAfter = options?.retryAfter ?? null;
+    this.errors = options?.errors ?? [];
   }
 }
 
@@ -64,17 +79,29 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   const body = (await response.json().catch(() => null)) as
-    | { detail?: { code?: string; message?: string } }
+    | {
+        detail?: {
+          code?: string;
+          message?: string;
+          errors?: ApiFieldError[];
+        };
+      }
     | null;
 
   if (!response.ok) {
     if (response.status === 401 && unauthorizedHandler) {
       unauthorizedHandler();
     }
+    const retryAfterHeader = response.headers.get("retry-after");
+    const retryAfter =
+      retryAfterHeader !== null && /^\d+$/.test(retryAfterHeader)
+        ? Number.parseInt(retryAfterHeader, 10)
+        : null;
     throw new ApiError(
       response.status,
       body?.detail?.code ?? "request_failed",
       body?.detail?.message ?? `Request failed with status ${response.status}`,
+      { retryAfter, errors: body?.detail?.errors ?? [] },
     );
   }
 

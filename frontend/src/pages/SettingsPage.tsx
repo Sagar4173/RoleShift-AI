@@ -5,7 +5,7 @@ import { Card } from "../components/ui/Card";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Spinner } from "../components/ui/Spinner";
 import { useApi } from "../hooks/useApi";
-import { api } from "../services/api";
+import { api, ApiError } from "../services/api";
 
 const CAPABILITIES = [
   {
@@ -25,7 +25,7 @@ const CAPABILITIES = [
   },
 ];
 
-function Connectivity({ label, loading, error }: { label: string; loading: boolean; error: string | null }) {
+function Connectivity({ label, loading, error }: { label: string; loading: boolean; error: ApiError | null }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <div className="flex items-center gap-2">

@@ -4,6 +4,7 @@ import type { FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext";
+import { describeApiError, fieldErrorsFor } from "../lib/apiErrors";
 import { ApiError } from "../services/api";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -53,7 +54,13 @@ export function LoginPage() {
       navigate(from ?? "/app", { replace: true });
     } catch (err) {
       if (err instanceof ApiError) {
-        setFormError(err.status === 401 ? "Invalid email or password" : err.message);
+        if (err.status === 401) {
+          setFormError("Invalid email or password");
+        } else {
+          const mapped = fieldErrorsFor(err, { email: "email", password: "password" });
+          setFieldErrors((previous) => ({ ...previous, ...mapped }));
+          setFormError(describeApiError(err).message);
+        }
       } else {
         setFormError("Unable to sign in. Please try again.");
       }

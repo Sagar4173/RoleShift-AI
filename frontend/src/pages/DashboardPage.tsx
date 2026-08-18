@@ -110,11 +110,7 @@ export function DashboardPage() {
           title="Workforce AI Intelligence"
           description="AI exposure across your workforce: what will change, what stays human, and what to do about it."
         />
-        <ErrorState
-          title="Dashboard unavailable"
-          description={summary.error ?? "Could not load dashboard data."}
-          onRetry={summary.refetch}
-        />
+        <ErrorState title="Dashboard unavailable" error={summary.error} onRetry={summary.refetch} />
       </div>
     );
   }

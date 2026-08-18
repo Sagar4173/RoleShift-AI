@@ -9,7 +9,8 @@ import { PageHeader } from "../components/ui/PageHeader";
 import { Skeleton } from "../components/ui/Skeleton";
 import { useAuth } from "../context/AuthContext";
 import { useApi } from "../hooks/useApi";
-import { api } from "../services/api";
+import { describeApiError } from "../lib/apiErrors";
+import { api, ApiError } from "../services/api";
 import type { Member, MemberRole } from "../types/api";
 
 const ROLE_LABELS: Record<MemberRole, string> = {
@@ -41,7 +42,13 @@ export function MembersPage() {
       await api.changeMemberRole(member.user_id, role);
       refresh();
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Failed to update role");
+      setActionError(
+        err instanceof ApiError
+          ? describeApiError(err).message
+          : err instanceof Error
+            ? err.message
+            : "Failed to update role",
+      );
     }
   };
 
@@ -52,7 +59,13 @@ export function MembersPage() {
       await api.removeMember(member.user_id);
       refresh();
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Failed to remove member");
+      setActionError(
+        err instanceof ApiError
+          ? describeApiError(err).message
+          : err instanceof Error
+            ? err.message
+            : "Failed to remove member",
+      );
     }
   };
 
@@ -111,7 +124,8 @@ export function MembersPage() {
         ) : members.error || !members.data ? (
           <ErrorState
             title="Couldn't load members"
-            description={members.error ?? "The backend is unreachable."}
+            error={members.error}
+            description="The backend is unreachable."
             onRetry={refresh}
           />
         ) : members.data.items.length === 0 ? (

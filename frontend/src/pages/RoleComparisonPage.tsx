@@ -123,7 +123,7 @@ export function RoleComparisonPage() {
           </div>
         </Card>
       ) : roles.error ? (
-        <ErrorState className="mt-6" title="Could not load roles" description={roles.error} onRetry={roles.refetch} />
+        <ErrorState className="mt-6" title="Could not load roles" error={roles.error} onRetry={roles.refetch} />
       ) : options.length === 0 ? (
         <div className="mt-6">
           <EmptyState
@@ -151,7 +151,7 @@ export function RoleComparisonPage() {
           <Skeleton className="h-96" />
         </div>
       ) : compare.error ? (
-        <ErrorState className="mt-6" title="Comparison failed" description={compare.error} onRetry={compare.refetch} />
+        <ErrorState className="mt-6" title="Comparison failed" error={compare.error} onRetry={compare.refetch} />
       ) : itemA && itemB ? (
         <>
           {/* Comparison header */}

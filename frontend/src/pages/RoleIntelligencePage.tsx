@@ -10,10 +10,13 @@ import { ImpactBadge } from "../components/ui/ImpactBadge";
 import { PageHeader } from "../components/ui/PageHeader";
 import { PriorityBadge } from "../components/ui/PriorityBadge";
 import { SkeletonRow } from "../components/ui/Skeleton";
+import { useAuth } from "../context/AuthContext";
 import { useApi } from "../hooks/useApi";
 import { formatDate } from "../lib/utils";
 import { api } from "../services/api";
-import type { RoleListItem } from "../types/api";
+import type { MemberRole, RoleListItem } from "../types/api";
+
+const CAN_ANALYZE: MemberRole[] = ["owner", "admin", "analyst"];
 
 function RoleRow({ role }: { role: RoleListItem }) {
   return (
@@ -51,6 +54,8 @@ function RoleRow({ role }: { role: RoleListItem }) {
 }
 
 export function RoleIntelligencePage() {
+  const { user } = useAuth();
+  const canAnalyze = user !== null && user.role !== null && CAN_ANALYZE.includes(user.role);
   const [search, setSearch] = useState("");
   const [industry, setIndustry] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -88,10 +93,12 @@ export function RoleIntelligencePage() {
         title="Role Intelligence"
         description="Browse roles and open each role's AI exposure, activity-level impact, and future-role profile."
         actions={
-          <Link to="/app/new-role-analysis" className="btn btn-primary">
-            <Sparkles size={14} aria-hidden="true" />
-            Analyze a role
-          </Link>
+          canAnalyze ? (
+            <Link to="/app/new-role-analysis" className="btn btn-primary">
+              <Sparkles size={14} aria-hidden="true" />
+              Analyze a role
+            </Link>
+          ) : undefined
         }
       />
 
@@ -154,7 +161,7 @@ export function RoleIntelligencePage() {
           </div>
         </Card>
       ) : error ? (
-        <ErrorState title="Could not load roles" description={error} onRetry={refetch} />
+        <ErrorState title="Could not load roles" error={error} onRetry={refetch} />
       ) : roles.length === 0 ? (
         hasAnyRoles ? (
           <Card title="Roles">

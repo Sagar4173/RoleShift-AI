@@ -163,7 +163,7 @@ const architectureItems = [
     icon: Workflow,
     title: "Built for iteration",
     description:
-      "A 108-test backend suite and typed React frontend keep the pipeline safe to evolve as models and prompts improve.",
+      "A 236-test backend suite and typed React frontend keep the pipeline safe to evolve as models and prompts improve.",
   },
 ];
 

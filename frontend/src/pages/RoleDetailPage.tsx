@@ -17,7 +17,8 @@ import { TransformationFlow } from "../components/TransformationFlow";
 import { WhyBox } from "../components/ui/WhyBox";
 import { useApi } from "../hooks/useApi";
 import { useAuth } from "../context/AuthContext";
-import { api } from "../services/api";
+import { describeApiError } from "../lib/apiErrors";
+import { api, ApiError } from "../services/api";
 import type { ActivityImpact, MemberRole, ReskillingPriority } from "../types/api";
 
 const RECOMMENDATION_VERB: Record<ReskillingPriority, string> = {
@@ -83,8 +84,9 @@ export function RoleDetailPage() {
       await api.analyzeRole(roleId, force);
       analysis.refetch();
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Analysis failed";
-      setAnalyzeError(message);
+      setAnalyzeError(
+        err instanceof ApiError ? describeApiError(err).message : "Analysis failed",
+      );
     } finally {
       setAnalyzing(false);
     }
@@ -114,9 +116,8 @@ export function RoleDetailPage() {
         <BackLink />
         <ErrorState
           title="Role not found"
-          description={
-            role.error ?? "This role may have been removed, or the backend is unreachable."
-          }
+          error={role.error}
+          description="This role may have been removed, or the backend is unreachable."
         />
       </div>
     );

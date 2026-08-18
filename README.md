@@ -35,9 +35,14 @@ strictly validated AI pipeline with full provenance.
   deterministically (invariant-tested).
 - ✅ **Cost-aware** — identical analysis requests are deduplicated via input hashing; `force`
   re-analysis is available for deliberate reruns.
-- ✅ **Testing** — 106+ passing backend tests (arbitrary-role pipeline, context gate, malformed AI
-  output, provider-failure handling, dedup/force, secret-leakage guards, production docs disabled),
-  strict TypeScript frontend, production deployment verified end-to-end.
+- ✅ **Authentication, RBAC & tenant isolation** — session-based auth (scrypt password hashing,
+  hashed session tokens, HttpOnly/SameSite/Secure cookies), owner / admin / analyst / viewer roles
+  enforced server-side (404-before-403), and organization-scoped data with a single workspace.
+- ✅ **Rate limiting** — per-client token-bucket limits on authentication, analysis, and
+  member-management endpoints, with `Retry-After` headers surfaced in the UI.
+- ✅ **Testing** — 236 passing backend tests (arbitrary-role pipeline, context gate, malformed AI
+  output, provider-failure handling, dedup/force, secret-leakage guards, production docs disabled,
+  rate limiting, RBAC), strict TypeScript frontend, production deployment verified end-to-end.
 
 Known limitations are listed at the bottom of this file.
 
@@ -224,8 +229,14 @@ Frontend (optional): `VITE_API_BASE_URL` — backend base URL when not using the
 
 | Method | Path | Purpose |
 |--------|------|---------|
+| POST | `/auth/register` | Create an account (joins the workspace as viewer) |
+| POST | `/auth/login` | Sign in (session cookie) |
+| POST | `/auth/logout` | Sign out |
+| GET | `/auth/me` | Current session user |
 | GET/POST | `/organizations` | List / create organizations |
 | GET | `/organizations/{id}` | Fetch one organization |
+| GET | `/organizations/members` | List organization members |
+| PUT/DELETE | `/organizations/members/{user_id}` | Change member role / remove member |
 | GET | `/roles` | List roles (paginated, with latest analysis) |
 | POST | `/roles` | Create a role |
 | POST | `/roles/analyze-new` | Create a role with context **and run its first analysis** |
@@ -316,11 +327,13 @@ The production architecture is **frozen**:
 
 ## Known limitations
 
-- **No authentication / RBAC** — the API is public; any caller can create roles, delete them, and
-  trigger paid AI analyses. Authentication is roadmap, not implemented.
-- **No multi-tenancy** — a single "Default Organization" is used. The organization model and
-  `organization_id` filters exist, but there is no tenant isolation or access control.
-- **No rate limiting** — no per-client limits exist; production hardening item.
+- **Auth & RBAC are implemented; self-service multi-tenant signup is not** — session
+  authentication, role-based access control (owner / admin / analyst / viewer, enforced
+  server-side), and organization-scoped data are shipped. New accounts join the single default
+  workspace as viewers; there is no per-tenant onboarding flow or tenant-scoped UI.
+- **Rate limiting is per-instance** — token-bucket limits on auth, analysis, and member-management
+  endpoints are enforced per process with `Retry-After` headers; there is no distributed limiter,
+  so a multi-instance deployment would divide the limits across instances.
 - **No multilingual support** — UI strings and prompts are English-only.
 - **No RAG / vector store / embeddings / knowledge graph / agents** — analysis is a single-shot
   structured LLM call over role-scoped context; there is no retrieval pipeline.

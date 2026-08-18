@@ -8,7 +8,7 @@ import { ErrorState } from "../components/ui/ErrorState";
 import { ForbiddenState } from "../components/ui/ForbiddenState";
 import { PageHeader } from "../components/ui/PageHeader";
 import { useAuth } from "../context/AuthContext";
-import { api } from "../services/api";
+import { api, ApiError } from "../services/api";
 
 const INDUSTRY_SUGGESTIONS = [
   "Technology / SaaS",
@@ -66,7 +66,7 @@ export function NewRoleAnalysisPage() {
   ]);
   const [currentSkills, setCurrentSkills] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ApiError | null>(null);
 
   const hasValidProcesses = processes.some(
     (process) =>
@@ -114,7 +114,11 @@ export function NewRoleAnalysisPage() {
       });
       navigate(`/role-intelligence/${response.role.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Analysis failed. Please try again.");
+      setError(
+        err instanceof ApiError
+          ? err
+          : new ApiError(0, "unknown_error", err instanceof Error ? err.message : "Analysis failed. Please try again."),
+      );
       setSubmitting(false);
     }
   };
@@ -329,12 +333,7 @@ export function NewRoleAnalysisPage() {
               </div>
             </fieldset>
 
-            {error && (
-              <ErrorState
-                title="Analysis could not be completed"
-                description={error}
-              />
-            )}
+            {error && <ErrorState title="Analysis could not be completed" error={error} />}
 
             <div className="border-t border-border-faint pt-5">
               <button
