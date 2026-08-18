@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass, field
 
 from beanie import PydanticObjectId
 
@@ -17,6 +18,21 @@ from app.schemas.role import RoleCreate
 from app.services.activity_service import ActivityService
 from app.services.process_service import ProcessService
 from app.services.skill_service import SkillService
+
+
+@dataclass
+class CreationTracker:
+    """Tracks every document a create-with-context call has persisted.
+
+    The tracker is filled incrementally as writes succeed, so even when a
+    downstream step raises mid-way, the caller knows exactly which documents
+    belong to the in-flight request and can compensate them without touching
+    pre-existing resources.
+    """
+
+    role_id: PydanticObjectId | None = None
+    process_ids: list[PydanticObjectId] = field(default_factory=list)
+    skill_ids: list[PydanticObjectId] = field(default_factory=list)
 
 
 def _build_filters(
@@ -59,6 +75,7 @@ class RoleService:
         processes: list,
         current_skills: list[str],
         allow_skill_catalogue_create: bool,
+        tracker: CreationTracker | None = None,
     ) -> Role:
         """Create a role together with its processes, activities, and skills.
 
@@ -66,9 +83,12 @@ class RoleService:
         linked to the role), and ``current_skills`` are resolved against the
         global skill catalogue and linked onto the role. Missing catalogue
         names are only created when ``allow_skill_catalogue_create`` is true
-        (OWNER/ADMIN flows); otherwise a missing name is a 422 and nothing is
-        written. Any document whose id cannot be persisted is skipped, leaving
-        a consistent, useful role.
+        (OWNER/ADMIN flows); otherwise a missing name is a 422.
+
+        Every successfully persisted document is recorded on ``tracker`` (when
+        provided) so transactional callers can compensate the whole request on
+        failure. Without a tracker, this method is best-effort: a document
+        that cannot be persisted is skipped, leaving a consistent, useful role.
         """
         role = await self.create(
             RoleCreate(
@@ -84,6 +104,8 @@ class RoleService:
                 code="internal_error",
                 status_code=500,
             )
+        if tracker is not None:
+            tracker.role_id = role.id
 
         sequence = 0
         process_service = ProcessService()
@@ -99,6 +121,8 @@ class RoleService:
             )
             if process.id is None:
                 continue
+            if tracker is not None:
+                tracker.process_ids.append(process.id)
             for activity_name in process_input.activities:
                 await activity_service.create(
                     ActivityCreate(
@@ -112,7 +136,10 @@ class RoleService:
                 sequence += 1
 
         await self._replace_current_skills(
-            role, current_skills, allow_skill_catalogue_create=allow_skill_catalogue_create
+            role,
+            current_skills,
+            allow_skill_catalogue_create=allow_skill_catalogue_create,
+            tracker=tracker,
         )
         return role
 
@@ -122,6 +149,7 @@ class RoleService:
         skill_names: list[str],
         *,
         allow_skill_catalogue_create: bool,
+        tracker: CreationTracker | None = None,
     ) -> None:
         """Resolve skill names against the catalogue and relink the role.
 
@@ -129,15 +157,23 @@ class RoleService:
         explicitly authorized to extend the global catalogue (OWNER/ADMIN);
         otherwise a missing name raises a deterministic 422 and the role is
         left untouched (fail before any write — no partial mutation).
+        Newly created catalogue entries are recorded on ``tracker``.
         """
         skill_service = SkillService()
         skill_ids: list[PydanticObjectId] = []
         for skill_name in skill_names:
+            created_skills: list = []
             skill = await skill_service.get_or_create_by_name(
-                skill_name, allow_create=allow_skill_catalogue_create
+                skill_name,
+                allow_create=allow_skill_catalogue_create,
+                created=created_skills,
             )
             if skill.id is not None:
                 skill_ids.append(skill.id)
+            if tracker is not None:
+                tracker.skill_ids.extend(
+                    skill.id for skill in created_skills if skill.id is not None
+                )
         role.current_skill_ids = skill_ids
         await self.repository.update(role)
 

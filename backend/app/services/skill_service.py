@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
-from app.core.exceptions import AppError, NotFoundError
+from pymongo.errors import DuplicateKeyError
+
+from app.core.exceptions import AppError, DatabaseError, NotFoundError
+from app.core.logging import get_logger
 from app.models.skill import Skill
 from app.repositories.skill import SkillRepository
 from app.schemas.skill import SkillCreate
+
+logger = get_logger("services.skill")
 
 
 class SkillService:
@@ -27,16 +32,36 @@ class SkillService:
         total = await self.repository.count(filters)
         return skills, total
 
-    async def get_or_create_by_name(self, name: str, *, allow_create: bool = True) -> Skill:
-        """Return the catalogue skill with this name.
+    async def get_or_create_by_name(
+        self,
+        name: str,
+        *,
+        allow_create: bool = True,
+        created: list[Skill] | None = None,
+    ) -> Skill:
+        """Return the catalogue skill with this name, creating it when absent.
 
-        Creates the catalogue entry when absent — but only when
-        ``allow_create`` is true. Callers that are not authorized to create
-        global catalogue entries (ANALYST content flows) pass
-        ``allow_create=False`` and receive a deterministic 422
-        (``skill_not_found_in_catalogue``) instead of a silent global write.
+        Names resolve canonically: an exact name match wins, then a
+        case/whitespace-insensitive match against the catalogue's unique
+        canonical names — so "financial analysis" resolves to the existing
+        "Financial Analysis" entry instead of creating a duplicate.
+
+        Creation is race-safe: when two requests create the same canonical
+        name concurrently, exactly one insert succeeds; the loser catches the
+        duplicate-key condition, re-reads the winner's document, and returns
+        it — a lost race is never a fatal error. Only the request that
+        actually inserted the document records it on ``created``, so
+        transactional callers can compensate exactly the skills this request
+        introduced and never touch pre-existing catalogue entries.
+
+        When ``allow_create`` is false (ANALYST content flows), a missing
+        name raises a deterministic 422 (``skill_not_found_in_catalogue``)
+        instead of a silent global write.
         """
         existing = await self.repository.get_by_name(name)
+        if existing is None:
+            normalized = name.strip().lower()
+            existing = await self.repository.get_by_normalized_name(normalized)
         if existing is not None:
             return existing
         if not allow_create:
@@ -45,4 +70,19 @@ class SkillService:
                 code="skill_not_found_in_catalogue",
                 status_code=422,
             )
-        return await self.create(SkillCreate(name=name))
+        try:
+            skill = await self.create(SkillCreate(name=name))
+        except DatabaseError as exc:
+            if not isinstance(exc.__cause__, DuplicateKeyError):
+                raise
+            winner = await self.repository.get_by_normalized_name(name.strip().lower())
+            if winner is None:
+                raise
+            logger.info(
+                "Lost concurrent creation race for skill %r; using the winner's catalogue entry",
+                name,
+            )
+            return winner
+        if created is not None:
+            created.append(skill)
+        return skill

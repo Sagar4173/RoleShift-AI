@@ -13,10 +13,11 @@ from datetime import UTC, datetime
 from beanie import PydanticObjectId
 
 from app.core.config import Settings
-from app.core.exceptions import NotFoundError, ValidationError
+from app.core.exceptions import AppError, NotFoundError, ValidationError
 from app.core.logging import get_logger
 from app.models.analysis_run import AnalysisRun
 from app.models.enums import AnalysisRunStatus, ImpactLevel, ReskillingPriority
+from app.models.role import Role
 from app.models.role_analysis import (
     ActivityImpact,
     AiExposureSummary,
@@ -28,7 +29,10 @@ from app.models.role_analysis import (
     SkillGap,
 )
 from app.repositories.analysis_run import AnalysisRunRepository
+from app.repositories.activity import ActivityRepository
+from app.repositories.process import ProcessRepository
 from app.repositories.role_analysis import RoleAnalysisRepository
+from app.repositories.skill import SkillRepository
 from app.schemas.analysis import CurrentSkillRead, RoleAnalysisRead
 from app.services.ai import get_provider
 from app.services.ai.base import (
@@ -42,7 +46,7 @@ from app.services.ai.base import (
 from app.services.ai.prompt import ANALYSIS_VERSION, PROMPT_VERSION
 from app.services.activity_service import ActivityService
 from app.services.process_service import ProcessService
-from app.services.role_service import RoleService
+from app.services.role_service import CreationTracker, RoleService
 from app.services.skill_service import SkillService
 
 logger = get_logger("services.analysis")
@@ -169,6 +173,20 @@ async def _build_request(
     )
 
 
+def _context_problems(
+    *, industry: str | None, activities: list, current_skills: list
+) -> list[str]:
+    """Problems that make an analysis request contextually meaningless."""
+    problems: list[str] = []
+    if not (industry or "").strip():
+        problems.append("Industry is required to provide analysis context")
+    if not activities:
+        problems.append("At least one activity is required for analysis")
+    if not current_skills:
+        problems.append("At least one current skill is required for analysis")
+    return problems
+
+
 def _validate_context(request: AIAnalysisRequest) -> None:
     """Reject empty/meaningless contexts before any AI call.
 
@@ -176,13 +194,11 @@ def _validate_context(request: AIAnalysisRequest) -> None:
     skills would otherwise let the provider fabricate a convincing-looking
     result from nothing. Such requests are refused with a clear error.
     """
-    problems: list[str] = []
-    if not (request.industry or "").strip():
-        problems.append("Industry is required to provide analysis context")
-    if not request.activities:
-        problems.append("At least one activity is required for analysis")
-    if not request.current_skills:
-        problems.append("At least one current skill is required for analysis")
+    problems = _context_problems(
+        industry=request.industry,
+        activities=request.activities,
+        current_skills=request.current_skills,
+    )
     if problems:
         raise ValidationError("; ".join(problems))
 
@@ -363,6 +379,224 @@ class AnalysisService:
                     )
         data["current_skills"] = current_skills
         return RoleAnalysisRead(**data)
+
+    async def analyze_new(
+        self,
+        *,
+        organization_id: PydanticObjectId,
+        settings: Settings,
+        name: str,
+        description: str | None,
+        industry: str | None,
+        processes: list,
+        current_skills: list[str],
+        allow_skill_catalogue_create: bool,
+    ) -> tuple[Role, RoleAnalysis]:
+        """Create a role (with processes, activities, skills) and analyze it atomically.
+
+        Transactional contract (Phase 6.5.1):
+
+        1. Every request-level requirement that can be validated without
+           persistence is checked BEFORE anything is written: the analysis
+           context gate (industry, at least one activity, at least one
+           current skill) and — for callers that may not extend the global
+           skill catalogue (ANALYST) — that every referenced skill already
+           exists. These failures raise the same errors as before, but
+           nothing has been persisted, so nothing can be orphaned.
+        2. All documents created by this request are tracked as they are
+           written (role, processes, activities, newly created catalogue
+           skills, RoleAnalysis, AnalysisRun).
+        3. If ANY step fails after creation begins — a downstream
+           persistence error, an AI provider failure, an output-validation
+           failure, or an unexpected exception — every document created by
+           this request is compensated (deleted) in reverse dependency
+           order, and the original error is re-raised. Pre-existing
+           resources are never touched: compensation is keyed on the
+           brand-new role id and the exact ids collected during creation.
+        4. On success all documents remain; deduplication (``force=False``)
+           and the AnalysisRun audit trail behave exactly as before.
+        """
+        await self._validate_new_role_payload(
+            industry=industry,
+            processes=processes,
+            current_skills=current_skills,
+            allow_skill_catalogue_create=allow_skill_catalogue_create,
+        )
+
+        tracker = CreationTracker()
+        role: Role | None = None
+        try:
+            role = await self._role_service.create_with_context(
+                organization_id=organization_id,
+                name=name,
+                description=description,
+                industry=industry,
+                processes=processes,
+                current_skills=current_skills,
+                allow_skill_catalogue_create=allow_skill_catalogue_create,
+                tracker=tracker,
+            )
+            if role.id is None:
+                raise AppError(
+                    "Failed to persist new role",
+                    code="internal_error",
+                    status_code=500,
+                )
+            analysis = await self.analyze_role(
+                role.id,
+                settings=settings,
+                force=False,
+                organization_id=organization_id,
+            )
+        except BaseException:
+            await self._rollback_created(organization_id, tracker)
+            raise
+        return role, analysis
+
+    async def _validate_new_role_payload(
+        self,
+        *,
+        industry: str | None,
+        processes: list,
+        current_skills: list[str],
+        allow_skill_catalogue_create: bool,
+    ) -> None:
+        """Reject analyze-new requests before anything is persisted.
+
+        Mirrors the pipeline's context gate (``_validate_context``) so the
+        request fails with the exact same errors — but before a single
+        document exists. For callers without catalogue-creation rights
+        (ANALYST), every referenced skill must already exist in the global
+        catalogue; a missing name is the same 422
+        (``skill_not_found_in_catalogue``) the link step would raise.
+        """
+        total_activities = [
+            activity
+            for process_input in processes
+            for activity in process_input.activities
+        ]
+        problems = _context_problems(
+            industry=industry,
+            activities=total_activities,
+            current_skills=current_skills,
+        )
+        if problems:
+            raise ValidationError("; ".join(problems))
+
+        if not allow_skill_catalogue_create:
+            skill_service = SkillService()
+            for skill_name in current_skills:
+                await skill_service.get_or_create_by_name(
+                    skill_name, allow_create=False
+                )
+
+    async def _rollback_created(
+        self,
+        organization_id: PydanticObjectId,
+        tracker: CreationTracker,
+    ) -> None:
+        """Compensate every document a failed analyze-new request created.
+
+        Deletes in reverse dependency order: analyses and runs first (they
+        reference the role), then the catalogue skills this request created
+        (only when no OTHER role in any organization references them — the
+        global catalogue is shared, so a referenced skill is preserved),
+        then activities, processes, and finally the role itself. Every
+        deletion is keyed on the brand-new role id or on ids collected at
+        creation time, so pre-existing resources — including pre-existing
+        analyses, runs, roles, processes, activities, and catalogue skills —
+        are never touched. Compensation is best-effort: failures are logged
+        and the original error is not masked.
+        """
+        if tracker.role_id is None:
+            return
+        role_id = tracker.role_id
+
+        # Reverse dependency order: children before parents.
+        try:
+            for analysis in await self._analysis_repo.list(
+                filters={"role_id": role_id, "organization_id": organization_id}
+            ):
+                await analysis.delete()
+        except Exception as exc:
+            logger.error(
+                "Rollback: failed to delete analyses for role %s: %s", role_id, exc
+            )
+
+        try:
+            for run in await self._run_repo.list(
+                filters={"role_id": role_id, "organization_id": organization_id}
+            ):
+                await run.delete()
+        except Exception as exc:
+            logger.error(
+                "Rollback: failed to delete runs for role %s: %s", role_id, exc
+            )
+
+        try:
+            role_repo = self._role_service.repository
+            skill_repo = SkillRepository()
+            for skill_id in tracker.skill_ids:
+                skill = await skill_repo.get_by_id(skill_id)
+                if skill is None:
+                    continue
+                # The skill catalogue is GLOBAL: any persisted role in ANY
+                # organization may reference this skill. Only delete a skill
+                # this request created when no OTHER role references it — the
+                # failed request's own role is being rolled back and must not
+                # keep the skill alive.
+                referencing = await role_repo.count(
+                    filters={
+                        "current_skill_ids": skill_id,
+                        "_id": {"$ne": role_id},
+                    }
+                )
+                if referencing == 0:
+                    await skill.delete()
+                else:
+                    logger.info(
+                        "Rollback: preserving shared skill %s (%s) referenced by %d other role(s)",
+                        skill_id,
+                        skill.name,
+                        referencing,
+                    )
+        except Exception as exc:
+            logger.error(
+                "Rollback: failed to delete created skills for role %s: %s",
+                role_id,
+                exc,
+            )
+
+        try:
+            activity_repo = ActivityRepository()
+            for activity in await activity_repo.list(
+                filters={"role_id": role_id, "organization_id": organization_id}
+            ):
+                await activity.delete()
+        except Exception as exc:
+            logger.error(
+                "Rollback: failed to delete activities for role %s: %s", role_id, exc
+            )
+
+        try:
+            process_repo = ProcessRepository()
+            for process_id in tracker.process_ids:
+                process = await process_repo.get_by_id(process_id)
+                if process is not None and process.organization_id == organization_id:
+                    await process.delete()
+        except Exception as exc:
+            logger.error(
+                "Rollback: failed to delete processes for role %s: %s", role_id, exc
+            )
+
+        try:
+            role = await self._role_service.repository.get_by_id(role_id)
+            if role is not None and role.organization_id == organization_id:
+                await role.delete()
+        except Exception as exc:
+            logger.error(
+                "Rollback: failed to delete role %s: %s", role_id, exc
+            )
 
     async def analyze_role(
         self,

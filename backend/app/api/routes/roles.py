@@ -106,7 +106,6 @@ async def analyze_new_role(
     settings: Settings = Depends(get_settings_dep),
     organization: Organization = Depends(get_current_organization),
     membership: OrganizationMembership = Depends(require_roles(*CONTENT_ROLES)),
-    role_service: RoleService = Depends(),
     analysis_service: AnalysisService = Depends(),
 ) -> AnalyzeNewResponse:
     """Create a role (with processes, activities, and skills) and run its first analysis.
@@ -116,31 +115,27 @@ async def analyze_new_role(
     organization. Returns both so the UI can navigate straight to the
     role's intelligence view.
 
+    Phase 6.5.1: the whole request is transactional. Every request-level
+    requirement (analysis context, and — for callers without catalogue
+    rights — skill existence) is validated BEFORE anything is written, and
+    any downstream failure rolls back every document the request created,
+    so a failed analyze-new never leaves orphaned roles, processes,
+    activities, skills, analyses, or runs behind.
+
     The global skill catalogue is only extended by OWNER/ADMIN: an ANALYST
     referencing a skill name that does not exist in the catalogue receives a
     422 (``skill_not_found_in_catalogue``) before any write.
     """
-    role = await role_service.create_with_context(
-        organization_id=_org_id(organization),
-        name=payload.name,
-        description=payload.description,
-        industry=payload.industry,
-        processes=payload.processes,
-        current_skills=payload.current_skills,
-        allow_skill_catalogue_create=membership.role in DESTRUCTIVE_ROLES,
-    )
-    if role.id is None:
-        raise AppError(
-            "Failed to persist new role",
-            code="internal_error",
-            status_code=500,
-        )
     try:
-        analysis = await analysis_service.analyze_role(
-            role.id,
-            settings=settings,
-            force=False,
+        role, analysis = await analysis_service.analyze_new(
             organization_id=_org_id(organization),
+            settings=settings,
+            name=payload.name,
+            description=payload.description,
+            industry=payload.industry,
+            processes=payload.processes,
+            current_skills=payload.current_skills,
+            allow_skill_catalogue_create=membership.role in DESTRUCTIVE_ROLES,
         )
     except AIProviderError as exc:
         raise AppError(
